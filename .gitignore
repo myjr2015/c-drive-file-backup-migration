@@ -1,0 +1,10 @@
+api.txt
+data/user-settings.json
+scripts/test/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.worktrees/
+worktrees/
