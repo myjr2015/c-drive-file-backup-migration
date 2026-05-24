@@ -28,7 +28,7 @@ def main() -> int:
     if args.command == "scheduled-backup":
         config_path = Path(args.config)
         if not config_path.exists():
-            print(f"计划配置不存在：{config_path}")
+            safe_print(f"计划配置不存在：{config_path}")
             return 2
         config = json.loads(config_path.read_text(encoding="utf-8"))
         return run_backup(Path(config["backup_root"]), set(config["items"]), config.get("custom_items", []))
@@ -45,12 +45,19 @@ def run_backup(
         custom_items = load_user_settings(settings_path).get("custom_items", [])
     items = [item for item in build_backup_items(Path.home(), custom_items) if item.name in selected_names and item.source.exists()]
     if not items:
-        print("没有可备份的项目")
+        safe_print("没有可备份的项目")
         return 2
     service = BackupService(backup_root)
     result = service.create_snapshot(items)
-    print(f"备份完成：{result.path}")
+    safe_print(f"备份完成：{result.path}")
     return 0
+
+
+def safe_print(message: str) -> None:
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(message.encode("utf-8", errors="backslashreplace").decode("ascii"))
 
 
 if __name__ == "__main__":

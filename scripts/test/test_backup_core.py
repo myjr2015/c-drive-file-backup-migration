@@ -259,7 +259,7 @@ class BackupServiceTests(unittest.TestCase):
             result = service.cancel_link_migration(BackupItem(".happy", link_path))
 
             self.assertEqual(result.link_path, link_path)
-            self.assertEqual(result.store_path, store_path)
+            self.assertEqual(service._path_key(result.store_path), service._path_key(store_path))
             self.assertTrue((link_path / "sessions.json").exists())
             self.assertFalse(link_path.is_junction())
             self.assertFalse(store_path.exists())
@@ -383,7 +383,7 @@ class BackupServiceTests(unittest.TestCase):
 
             new_store = backup_root / LINK_STORE_DIR_NAME / ".happy"
             self.assertTrue(link_path.is_junction())
-            self.assertEqual(Path(os.path.realpath(link_path)), new_store)
+            self.assertEqual(service._path_key(Path(os.path.realpath(link_path))), service._path_key(new_store))
             self.assertTrue((new_store / "sessions.json").exists())
             self.assertFalse(legacy_store.exists())
 

@@ -224,7 +224,7 @@ class BackupService:
                 for link_path, legacy_target in link_repoints:
                     if link_path.exists():
                         self._remove_path(link_path)
-                    link_destinations[self._path_key(legacy_target)] = current_dir / legacy_target.relative_to(legacy_dir)
+                    link_destinations[self._path_key(legacy_target)] = current_dir / self._relative_to_normalized(legacy_target, legacy_dir)
 
             current_dir.mkdir(parents=True, exist_ok=True)
             child_destinations: dict[str, Path] = {}
@@ -518,16 +518,17 @@ class BackupService:
     def _legacy_link_repoints(self, items: Iterable[BackupItem]) -> list[tuple[Path, Path]]:
         repoints: list[tuple[Path, Path]] = []
         legacy_root = self.legacy_link_store_root()
+        normalized_legacy_root = self._normalize_path(legacy_root)
         for item in items:
             source = Path(item.source)
             if not (hasattr(source, "is_junction") and source.exists() and source.is_junction()):
                 continue
             try:
-                target = Path(os.path.realpath(source))
+                target = self._normalize_path(Path(os.path.realpath(source)))
             except OSError:
                 continue
             try:
-                target.relative_to(legacy_root)
+                target.relative_to(normalized_legacy_root)
             except ValueError:
                 continue
             repoints.append((source, target))
@@ -544,17 +545,31 @@ class BackupService:
         if key in child_destinations:
             return child_destinations[key]
         try:
-            first_child = legacy_target.relative_to(legacy_root).parts[0]
+            relative_target = self._relative_to_normalized(legacy_target, legacy_root)
+            first_child = relative_target.parts[0]
         except (ValueError, IndexError):
             return self.default_link_store_root() / legacy_target.name
         moved_child = child_destinations.get(self._path_key(legacy_root / first_child))
         if moved_child is None:
             return link_destinations.get(key, self.default_link_store_root() / first_child)
-        relative_tail = legacy_target.relative_to(legacy_root / first_child)
+        relative_tail = Path(*relative_target.parts[1:])
         return moved_child / relative_tail
 
     def _path_key(self, path: Path) -> str:
-        return str(Path(path)).lower() if os.name == "nt" else str(Path(path))
+        normalized = self._normalize_path(path)
+        return str(normalized).lower() if os.name == "nt" else str(normalized)
+
+    def _normalize_path(self, path: Path) -> Path:
+        path = Path(path)
+        if os.name != "nt":
+            return path
+        try:
+            return path.resolve(strict=False)
+        except OSError:
+            return path
+
+    def _relative_to_normalized(self, path: Path, parent: Path) -> Path:
+        return self._normalize_path(path).relative_to(self._normalize_path(parent))
 
     def _path_exists(self, path: Path) -> bool:
         return Path(path).exists()

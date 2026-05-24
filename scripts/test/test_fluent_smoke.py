@@ -912,9 +912,18 @@ class FluentSmokeTests(unittest.TestCase):
 
         app = QApplication.instance() or QApplication([])
         window = FluentBackupApp()
-        scanned = [
-            ScannedItem(BackupItem(f".item{i:02d}", Path(f"C:/Users/example/.item{i:02d}")), True, i + 1, None)
+        window._wait_for_thread(window.scan_worker)
+        app.processEvents()
+        window.scan_worker = None
+        window.persist_selected_items = lambda: None
+        window.items = [
+            BackupItem(f".item{i:02d}", Path(f"C:/Users/example/.item{i:02d}"))
             for i in range(40)
+        ]
+        window.selected_names = {item.name for item in window.items}
+        scanned = [
+            ScannedItem(item, True, index + 1, None)
+            for index, item in enumerate(window.items)
         ]
         window.apply_scanned_items(scanned)
         window._set_current_page(window.items_page)
