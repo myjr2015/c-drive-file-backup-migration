@@ -59,3 +59,4 @@ description: 本项目失败路线、风险和不要重复尝试的方案。
 - 不要看到任务栏里很多 `pythonw` 就直接判断为进程泄漏或线程泄漏；先用 `Get-CimInstance Win32_Process` 查真实进程数，再枚举当前进程顶层窗口。当前已确认常见残留是 qfluentwidgets/Qt 通知条留下的标题为 `pythonw` 的小顶层窗口。
 - 不要让 Fluent 的 InfoBar 提示无限叠加；提示类反馈必须走单活动通知逻辑，新提示出现前关闭旧提示，避免任务栏继续堆 `pythonw` 小窗口。
 - 不要在正式 GUI 启动 bat 里直接同步调用 `pythonw.exe app_fluent.py`；双击 bat 会先打开 `cmd.exe`，同步调用容易让黑色窗口跟随 GUI 常驻。正式入口要用 `start` 分离 GUI 后退出 bat。
+- 不要假设 GitHub Actions Windows Runner 的标准输出一定是 UTF-8；把 UTF-8 字节再 `decode("ascii")` 会在中文输出时触发 `UnicodeDecodeError`，应按当前 stdout 编码做安全转义。

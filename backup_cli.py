@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from backup_core import BackupService, load_user_settings
@@ -57,7 +58,9 @@ def safe_print(message: str) -> None:
     try:
         print(message)
     except UnicodeEncodeError:
-        print(message.encode("utf-8", errors="backslashreplace").decode("ascii"))
+        encoding = sys.stdout.encoding or "utf-8"
+        safe_message = message.encode(encoding, errors="backslashreplace").decode(encoding, errors="replace")
+        print(safe_message)
 
 
 if __name__ == "__main__":
