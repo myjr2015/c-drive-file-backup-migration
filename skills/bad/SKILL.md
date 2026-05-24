@@ -12,12 +12,50 @@ description: 本项目失败路线、风险和不要重复尝试的方案。
 - 当前本机没有 .NET SDK，不能直接创建并编译 WPF 项目。
 - 不要用 Python `shutil.copytree` 直接复制 `AppData\Roaming\npm\node_modules` 这类深层目录；真实备份时已遇到 `[WinError 3] 系统找不到指定的路径`，改用 `robocopy`。
 - 不要在 `schtasks /TR` 里塞复杂嵌套 PowerShell 引号；已验证容易被解析错。计划任务应固定调用 `定时备份入口.bat`，具体备份项目写入 `data/schedule.json`。
-- 原生 Tkinter 界面又大又粗糙，不要继续在旧界面上做主要美化；默认维护 PySide6 版 `app_qt.py`。
+- 原生 Tkinter 和 PySide6 QSS 备用界面已删除；不要再恢复旧 GUI 分支，默认只维护 PySide6 + qfluentwidgets。
 - 不要只换 UI 框架而复用同一套拥挤布局；之前 Tkinter、Qt、Fluent、WPF 看起来差不多，就是因为信息架构没变。后续主线应维护 `app_fluent.py` 的分页面结构。
-- 不要把 `restore-backups`、`link-store`、`link-migration-backups` 当作普通快照展示或恢复。
-- 不要在 link-store 已存在同名目录时继续 Junction 迁移；这通常表示以前迁移过或有残留，必须先人工检查。
+- 不要把 `恢复前备份`、`迁移后的真实目录`、`迁移前备份`、`取消迁移前备份`、`环境变量Path备份` 或旧英文兼容目录当作普通快照展示或恢复。
+- 不要在 `迁移后的真实目录` 已存在同名目录时继续 Junction 迁移；这通常表示以前迁移过或有残留，必须先人工检查。
 - 不要把 `data/user-settings.json` 里空的 `selected_items` 当成首次启动；空列表可能表示用户明确选择“全不选”，必须通过 `settings_exists` 区分。
-- 不要让 `backup_cli.py` 或新版 GUI 从旧 Tkinter `app.py` 导入公共配置；公共配置必须从 `project_config.py` 读取，避免命令行入口意外加载 GUI 依赖。
+- 不要让 `backup_cli.py` 或 Fluent GUI 从已删除的旧 GUI 模块导入公共配置；公共配置必须从 `project_config.py` 读取。
 - 不要让 Fluent 窗口关闭时遗留正在运行的 `QThread`；测试可能表面 OK 但 Python 进程用 Qt 崩溃码退出。
 - 不要把敏感项目的快照当成加密备份；当前只是明文落盘并在 GUI/manifest 中标记风险。
 - 不要把 `.happy`、`.codex`、`.claude`、`.ssh`、`.gitconfig` 快照当成脱敏备份；它们可能包含 token、SSH 私钥或认证状态，上传、同步、分享前必须确认位置可信。
+- 不要把自定义项目按当前用户目录恢复；自定义项目必须读取 manifest 的 `restore_target`，否则会把绝对路径项目错误恢复到用户目录下。
+- 不要在保存勾选项或自定义项时丢弃 `backup_root` / `schedule_time`；这会让用户下次启动回到默认配置。
+- 不要只更新 `data/user-settings.json` 而漏写 `data/schedule.json`；否则已有计划任务会继续按旧备份项目执行。
+- 不要让测试实例把真实 `data/schedule.json` 写成临时目录路径；涉及 `Path.with_name("data")` 的 GUI 测试必须断言真实计划配置没有 `Temp/tmp` 污染。
+- 不要在普通保存路径直接写入定时时间输入框原文；必须先校验 `HH:mm`，否则用户勾选项目时也可能把 `99:99` 写进 `data/user-settings.json`。
+- 不要只靠肉眼判断 Fluent UI 排版；改 UI 后至少跑布局尺寸测试，必要时生成 `data/ui-snapshots/` 截图检查 `720x540` 和 `672x500`。
+- 不要把总览页的状态摘要再做成右侧栏或全局常驻侧栏；当前窄屏布局只保留当前保护状态、定时备份和状态摘要，最近快照和日志不放总览预览。
+- 不要把“最近快照”“最近日志”预览加回总览页；它们已有恢复页和日志页承载。
+- 不要再给 Fluent 操作按钮手写淡蓝、强蓝、hover、pressed 等颜色 QSS；默认使用 qfluentwidgets 的 `PushButton` / `PrimaryPushButton` 风格。
+- 不要在 Fluent 操作按钮 QSS 里同时写 `min-height/max-height` 来追求固定高度；Qt 会把边框计入后撑大，实际高度应由 `setFixedHeight(APP_BUTTON_HEIGHT)` 控制。
+- 不要在内容区操作按钮上再叠加 qfluentwidgets 图标；窄按钮里图标和文字容易重叠，左侧导航可以保留图标。
+- 不要再单独覆盖备份项目勾选框颜色；默认跟随 qfluentwidgets 主题。
+- 不要在迁移页只显示 Junction、link-store 这类英文专有名词而不解释；底部必须保留普通用户可理解的术语说明，并优先使用“迁移后的真实目录”等中文说法。
+- 不要再把左侧导航里的“备份”叫“项目”、把“迁移”叫“链接”；当前导航名称要面向普通用户。
+- 不要在备份项目勾选后重建卡片却丢失滚动条位置；这会让用户勾一下就跳到别处。
+- 不要让 `robocopy` / `schtasks` / `mmc` 这类 Windows 子进程默认弹控制台或直接触发 WinError 740；GUI 里要隐藏复制窗口，需要提权的系统入口用 PowerShell `Start-Process -Verb RunAs`。
+- 不要把迁移页改回单选下拉框或独立小面板；当前需求是和备份页一致的卡片、排序和分组工具栏布局，迁移列表默认按最近更新排序。
+- 不要尝试直接定位到 Windows 环境变量窗口里的 Path 行；当前只负责备份 Path、管理员打开系统环境变量入口，并在界面提示用户选择 Path。
+- 不要在没有额外确认和去重策略前做自动恢复 Path；当前环境页只做 Path 备份。
+- 不要再手写 Fluent 左侧导航按钮；默认使用 qfluentwidgets 标准 `NavigationInterface`。
+- 不要把 `NavigationInterface.addItem(onClick=...)` 写成只捕获页面的单参数 lambda；点击信号会传入 `checked` 布尔值，容易把 `bool` 当页面对象传给 `QStackedWidget.setCurrentWidget`。
+- 不要再把 `AppData\Roaming\npm`、`npm-cache` 或 `.gitconfig` 作为固定默认备份项；默认逻辑是扫描用户目录下现有的 `.` 前缀文件夹，其他路径走自定义项目。
+- 不要在总览页和备份项目页重复堆“立即备份”“管理项目”“恢复快照”这类导航链接；已有左侧导航，主操作保留一个入口即可。
+- 不要把“立即备份”只放在总览页；用户在备份页勾选清单后应能直接执行备份。
+- 不要让备份/迁移卡片里的 QLabel 使用 Qt 默认英文右键菜单；列表项右键只保留“打开当前目录”。
+- 不要把备份项目卡片改回多行大块布局；当前约定是单行展示，只有名称加粗，路径、大小、更新时间放在名称后面的普通详情里。
+- 不要为了简单备份工具堆大量固定宽高和大 padding；优先使用紧凑间距、最小宽度和自适应布局。
+- 不要直接在正式 `app_fluent.py` 里反复试主题、主题色、窗口和导航风格；先用 `style_demo_fluent.py` 独立演示器选定方向，再做正式迁移。
+- 不要再把 Fluent 正式主界面默认改回浅色、青绿色主题色、标准 Fluent 窗口或宽松密度；当前长期默认是跟随系统、蓝色、侧边导航、微软商店风格、紧凑。
+- 不要用 `shutil.rmtree` 删除 Junction；Windows 下取消迁移必须用 `Path.rmdir()` 删除 Junction 本身，否则可能误删真实目标内容。
+- 不要再把 `restore-backups`、`link-store`、`link-migration-backups`、`environment-path` 作为用户可见默认目录名；这些只能作为旧版本兼容名。
+- 不要用 `Remove-Item -Recurse -Force` 清空 `D:\code\backup` 这类用户备份目录；已误删用户手工目录 `原来手动备份的`。以后删除备份/用户数据必须优先送到回收站，并在删除前排除“手工、手动、原来、manual、old、备份”等人工命名目录。
+- 不要在 Fluent 迁移页用 `is_link_migrated()` 一个布尔值决定所有行为；必须通过 `get_link_migration_status()` 区分未迁移、已迁移和异常状态，异常状态不能自动迁移或取消迁移。
+- 不要在迁移页底部放大块多行说明卡或给列表设置不必要的最小高度；这会让 `720x540` 的 MSFluentWindow 看起来被突然拉高。
+- 不要用 `resizeEvent`、`resize()`、标题栏 `mouseMoveEvent`、自定义 `MSFluentTitleBar` 或只处理 `WM_GETMINMAXINFO` 去修复真实鼠标拖动时窗口自动变高；`MSFluentWindow`/qframelesswindow 的标题栏拖动走 Windows 原生 `SC_MOVE`，还要在 `WM_WINDOWPOSCHANGING` 阶段阻止布局建议高度覆盖系统移动参数。
+- 不要看到任务栏里很多 `pythonw` 就直接判断为进程泄漏或线程泄漏；先用 `Get-CimInstance Win32_Process` 查真实进程数，再枚举当前进程顶层窗口。当前已确认常见残留是 qfluentwidgets/Qt 通知条留下的标题为 `pythonw` 的小顶层窗口。
+- 不要让 Fluent 的 InfoBar 提示无限叠加；提示类反馈必须走单活动通知逻辑，新提示出现前关闭旧提示，避免任务栏继续堆 `pythonw` 小窗口。
+- 不要在正式 GUI 启动 bat 里直接同步调用 `pythonw.exe app_fluent.py`；双击 bat 会先打开 `cmd.exe`，同步调用容易让黑色窗口跟随 GUI 常驻。正式入口要用 `start` 分离 GUI 后退出 bat。

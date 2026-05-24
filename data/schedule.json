@@ -1,11 +1,6 @@
 {
-  "backup_root": "D:\\code\\DaiMa\\#全局备份\\AI会话备份",
-  "items": [
-    ".happy",
-    ".codex",
-    ".claude",
-    ".ssh",
-    "AppData/Roaming/npm"
-  ],
-  "updated_at": "2026-05-19T02:18:10"
+  "backup_root": "D:\\code\\backup",
+  "items": [],
+  "custom_items": [],
+  "updated_at": "2026-05-24T23:23:59"
 }

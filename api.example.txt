@@ -1,0 +1,4 @@
+GitHub
+<github_token>
+
+# 本文件只是示例。真实 api.txt 不要提交到 Git。

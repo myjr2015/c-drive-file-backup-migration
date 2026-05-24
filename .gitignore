@@ -1,6 +1,8 @@
 api.txt
 data/user-settings.json
-scripts/test/
+data/last-gui-*.log
+data/open-app-*.txt
+data/ui-snapshots/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -8,3 +10,4 @@ __pycache__/
 .mypy_cache/
 .worktrees/
 worktrees/
+.idea/
