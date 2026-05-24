@@ -30,6 +30,30 @@
 - 成功经验记录到 `skills/good/SKILL.md`
 - 失败路线记录到 `skills/bad/SKILL.md`
 
+## GitHub 开源发布约定
+
+- 公开仓库：`https://github.com/myjr2015/ai-config-backup-helper`
+- 远端默认使用：`origin https://github.com/myjr2015/ai-config-backup-helper.git`
+- 当前开源标准结构包含：`LICENSE`、`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`README.md`、`requirements.txt`、`pyproject.toml`、`api.example.txt`、`.github/ISSUE_TEMPLATE/`、`.github/pull_request_template.md`、`.github/workflows/tests.yml`。
+- 发布到 GitHub 前必须检查工作区和敏感文件：
+  - 先运行 `git status --short --branch` 和 `git diff`，只提交本次相关文件。
+  - 确认 `api.txt`、`data/user-settings.json`、日志、截图、`.idea/`、`__pycache__/` 等仍被 `.gitignore` 排除。
+  - 可用 `git check-ignore -v api.txt data/user-settings.json data/open-app-err.txt data/open-app-out.txt .idea/workspace.xml` 复查忽略来源。
+- 本机 GitHub 登录和推送默认走全局登录脚本，不要打印 token：
+  - `. 'D:\code\DaiMa\#全局登录脚本\Github.ps1' -ApiPath 'D:\code\DaiMa\#全局登录脚本\api.txt' -Quiet`
+  - 如果普通 `git push` 触发 Git Credential Manager 卡住，使用：
+    `git -c credential.helper="!gh auth git-credential" push`
+  - 推送前可设置 `$env:GCM_INTERACTIVE='never'` 和 `$env:GIT_TERMINAL_PROMPT='0'`，避免交互弹窗阻塞自动流程。
+- GitHub Actions 使用 Windows runner，CI 前本地至少运行：
+  - `python -m py_compile backup_cli.py backup_core.py app_fluent.py`
+  - `python -m unittest discover -s scripts/test -p 'test_*.py' -v`
+  - 完整测试约 120 秒，工具超时要给到 10 分钟左右；不要把 120 秒命令超时误判为测试失败。
+- CI 查看流程：
+  - `gh run list --repo myjr2015/ai-config-backup-helper --workflow tests --limit 5`
+  - `gh run watch <run_id> --repo myjr2015/ai-config-backup-helper --exit-status`
+  - 失败时用 `gh run view <run_id> --repo myjr2015/ai-config-backup-helper --log-failed` 看日志后再改。
+- Windows GitHub Actions 的 stdout 编码可能不是 UTF-8；CLI 中文输出兜底必须按当前 `sys.stdout.encoding` 做安全转义，不要写死 UTF-8 再用 ASCII 解码。
+
 ## 定时任务
 
 - 任务名：`AI配置备份助手-定时备份`

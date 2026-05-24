@@ -60,3 +60,7 @@ description: 本项目失败路线、风险和不要重复尝试的方案。
 - 不要让 Fluent 的 InfoBar 提示无限叠加；提示类反馈必须走单活动通知逻辑，新提示出现前关闭旧提示，避免任务栏继续堆 `pythonw` 小窗口。
 - 不要在正式 GUI 启动 bat 里直接同步调用 `pythonw.exe app_fluent.py`；双击 bat 会先打开 `cmd.exe`，同步调用容易让黑色窗口跟随 GUI 常驻。正式入口要用 `start` 分离 GUI 后退出 bat。
 - 不要假设 GitHub Actions Windows Runner 的标准输出一定是 UTF-8；把 UTF-8 字节再 `decode("ascii")` 会在中文输出时触发 `UnicodeDecodeError`，应按当前 stdout 编码做安全转义。
+- 不要把项目根目录的 `api.txt` 当作 GitHub 发布凭据来源；该文件应被忽略且可能为空，本机发布默认显式指定全局登录脚本的 `-ApiPath 'D:\code\DaiMa\#全局登录脚本\api.txt'`。
+- 不要在自动化发布时直接依赖普通 `git push`；Git Credential Manager 可能弹交互窗口或卡住，优先设置非交互环境变量并用 `credential.helper="!gh auth git-credential"`。
+- 不要把完整测试的 120 秒工具超时当作单测失败；当前完整 `unittest discover -v` 在本机约 120 秒，验证时应给足 10 分钟超时并阅读最终 exit code。
+- 不要只看 GitHub Actions 红叉就猜原因；必须用 `gh run view <run_id> --log-failed` 拉失败日志，确认是路径兼容、GUI 测试、还是控制台编码问题后再改。
