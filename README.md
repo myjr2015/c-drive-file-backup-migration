@@ -1,8 +1,8 @@
-# C盘文件备份迁移
+# AI会话配置备份迁移
 
-Windows 桌面工具，用来备份和迁移用户目录下的配置文件夹，重点保护 AI 工具会话、开发工具配置、SSH 配置、编辑器配置等容易被 C 盘重装或系统恢复影响的数据。
+Windows 桌面工具，用来备份和迁移用户目录下的 AI 会话与配置文件夹，重点保护 Codex、Happy、Claude、SSH、编辑器配置等容易被 C 盘重装或系统恢复影响的数据。
 
-这个项目的 GitHub 英文名是 **C Drive File Backup Migration**。
+这个项目的 GitHub 英文名是 **AI Session Config Backup Migration**。
 
 ## 为什么需要它
 
@@ -24,7 +24,7 @@ C:\Users\<用户名>\.vscode
 - 编辑器、插件和开发工具配置
 - 本地缓存、历史记录和恢复系统后很难重新补齐的状态
 
-Windows 重装系统、恢复系统、换机器、C 盘损坏或误清理时，这些目录经常一起丢失。`C盘文件备份迁移` 的目标很简单：让这些文件默认被看见、被备份，并且在需要时可以迁移到 D 盘长期保存。
+Windows 重装系统、恢复系统、换机器、C 盘损坏或误清理时，这些目录经常一起丢失。`AI会话配置备份迁移` 的目标很简单：让 AI 会话和关键配置默认被看见、被备份，并且在需要时可以迁移到 D 盘长期保存。
 
 ## 两种用法
 
@@ -75,7 +75,7 @@ mklink /J C:\Users\<用户名>\.vscode D:\code\backup\迁移后的真实目录\.
 ## 当前版本
 
 ```text
-V0.0.1
+V0.0.2
 ```
 
 这是早期测试版，功能已经可用，但仍按 bug 版本看待。建议先用“保守用法”做定时备份，确认快照和恢复逻辑符合预期后，再使用迁移功能。
@@ -85,13 +85,13 @@ V0.0.1
 在 GitHub Releases 下载 Windows 便携版：
 
 ```text
-C盘文件备份迁移-V0.0.1-windows-portable.zip
+ai-session-config-backup-migration-v0.0.2-windows-portable.zip
 ```
 
 解压后运行：
 
 ```text
-C盘文件备份迁移.exe
+AI会话配置备份迁移.exe
 ```
 
 也可以从源码运行：

@@ -626,6 +626,26 @@ class FluentSmokeTests(unittest.TestCase):
         window.close()
         app.quit()
 
+    def test_schedule_status_accepts_legacy_task_name(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+
+        class Result:
+            def __init__(self, returncode: int) -> None:
+                self.returncode = returncode
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        with patch.object(window, "query_schedule_task", return_value=Result(1)), patch.object(
+            window, "query_legacy_schedule_tasks", return_value=[Result(0)]
+        ):
+            window.refresh_schedule_status()
+
+        self.assertEqual(window.schedule_status.text(), "状态：已创建")
+        window.close()
+        app.quit()
+
     def test_environment_page_can_backup_path_variables(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
@@ -1407,7 +1427,7 @@ class FluentSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(len(files), 5)
 
     def test_gui_launcher_bat_detaches_pythonw_and_exits_cmd_prompt(self):
-        launcher = Path("启动C盘文件备份迁移.bat")
+        launcher = Path("启动AI会话配置备份迁移.bat")
         text = launcher.read_text(encoding="utf-8")
 
         self.assertIn("start", text.lower())

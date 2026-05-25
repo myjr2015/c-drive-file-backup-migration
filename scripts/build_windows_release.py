@@ -8,8 +8,8 @@ import zipfile
 from pathlib import Path
 
 
-APP_NAME = "C盘文件备份迁移"
-APP_VERSION = "V0.0.1"
+APP_NAME = "AI会话配置备份迁移"
+APP_VERSION = "V0.0.2"
 ZIP_NAME = f"{APP_NAME}-{APP_VERSION}-windows-portable.zip"
 
 

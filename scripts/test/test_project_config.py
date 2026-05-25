@@ -10,9 +10,11 @@ class ProjectConfigTests(unittest.TestCase):
     def test_public_product_metadata_uses_release_name_version_and_icon(self):
         import project_config
 
-        self.assertEqual(project_config.APP_TITLE, "C盘文件备份迁移")
-        self.assertEqual(project_config.APP_VERSION, "0.0.1")
-        self.assertEqual(project_config.GITHUB_REPOSITORY, "myjr2015/c-drive-file-backup-migration")
+        self.assertEqual(project_config.APP_TITLE, "AI会话配置备份迁移")
+        self.assertEqual(project_config.APP_VERSION, "0.0.2")
+        self.assertEqual(project_config.GITHUB_REPOSITORY, "myjr2015/ai-session-config-backup-migration")
+        self.assertEqual(project_config.SCHEDULE_TASK_NAME, "AI会话配置备份迁移-定时备份")
+        self.assertIn("AI配置备份助手-定时备份", project_config.LEGACY_SCHEDULE_TASK_NAMES)
         self.assertEqual(project_config.APP_ICON_PATH, Path("assets/app.ico"))
         self.assertTrue(project_config.APP_ICON_PATH.exists())
 
