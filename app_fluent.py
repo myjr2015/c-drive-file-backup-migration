@@ -10,7 +10,7 @@ from html import escape
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, QSize, Qt, QThread, Signal
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QColor, QFont, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -64,6 +64,7 @@ from backup_core import (
     write_user_settings,
 )
 from project_config import (
+    APP_ICON_PATH,
     APP_TITLE,
     SCHEDULE_TASK_NAME,
     build_backup_items,
@@ -287,17 +288,37 @@ def set_compact_button(widget: QWidget) -> None:
     widget.setFixedHeight(APP_BUTTON_HEIGHT)
 
 
+def app_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def app_data_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return app_base_dir() / "data"
+    return Path(__file__).with_name("data")
+
+
+def resource_path(relative_path: Path | str) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", app_base_dir()))
+    return base / Path(relative_path)
+
+
 class FluentBackupApp(MSFluentWindow):
     def __init__(self) -> None:
         self._system_move_size: tuple[int, int] | None = None
         super().__init__()
         self.setWindowTitle(APP_TITLE)
+        icon = QIcon(str(resource_path(APP_ICON_PATH)))
+        if not icon.isNull():
+            self.setWindowIcon(icon)
         self.resize(APP_DEFAULT_SIZE)
         self.setMinimumSize(APP_MINIMUM_SIZE)
 
         config = load_config()
         self.home = Path.home()
-        self.user_settings_path = Path(__file__).with_name("data") / "user-settings.json"
+        self.user_settings_path = app_data_dir() / "user-settings.json"
         user_settings = load_user_settings(self.user_settings_path)
         self.backup_root = get_backup_root(config, user_settings)
         self.service = BackupService(self.backup_root)

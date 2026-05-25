@@ -6,7 +6,10 @@ from pathlib import Path
 from backup_core import BackupItem
 
 
-APP_TITLE = "AI配置备份助手"
+APP_TITLE = "C盘文件备份迁移"
+APP_VERSION = "0.0.1"
+APP_ICON_PATH = Path("assets/app.ico")
+GITHUB_REPOSITORY = "myjr2015/c-drive-file-backup-migration"
 SCHEDULE_TASK_NAME = "AI配置备份助手-定时备份"
 DEFAULT_BACKUP_ROOT = Path(r"D:\code\backup")
 FALLBACK_DOT_FOLDER_NAMES = [".claude", ".codex", ".happy", ".ssh"]

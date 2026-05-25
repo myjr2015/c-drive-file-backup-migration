@@ -11,3 +11,7 @@ __pycache__/
 .worktrees/
 worktrees/
 .idea/
+build/
+dist/
+release/
+*.spec.bak

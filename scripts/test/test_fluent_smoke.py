@@ -29,6 +29,20 @@ class FluentSmokeTests(unittest.TestCase):
         window.close()
         app.quit()
 
+    def test_fluent_window_uses_product_title_and_icon(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from project_config import APP_TITLE
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+
+        self.assertEqual(window.windowTitle(), APP_TITLE)
+        self.assertFalse(window.windowIcon().isNull())
+        window.close()
+        app.quit()
+
     def test_windows_min_track_size_matches_compact_window_minimum(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from ctypes import POINTER, Structure, addressof, c_void_p, cast
@@ -1393,7 +1407,7 @@ class FluentSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(len(files), 5)
 
     def test_gui_launcher_bat_detaches_pythonw_and_exits_cmd_prompt(self):
-        launcher = Path("启动AI配置备份助手.bat")
+        launcher = Path("启动C盘文件备份迁移.bat")
         text = launcher.read_text(encoding="utf-8")
 
         self.assertIn("start", text.lower())

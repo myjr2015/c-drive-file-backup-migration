@@ -7,6 +7,15 @@ from pathlib import Path
 
 
 class ProjectConfigTests(unittest.TestCase):
+    def test_public_product_metadata_uses_release_name_version_and_icon(self):
+        import project_config
+
+        self.assertEqual(project_config.APP_TITLE, "C盘文件备份迁移")
+        self.assertEqual(project_config.APP_VERSION, "0.0.1")
+        self.assertEqual(project_config.GITHUB_REPOSITORY, "myjr2015/c-drive-file-backup-migration")
+        self.assertEqual(project_config.APP_ICON_PATH, Path("assets/app.ico"))
+        self.assertTrue(project_config.APP_ICON_PATH.exists())
+
     def test_default_items_include_expected_user_config_paths(self):
         from project_config import default_items
 

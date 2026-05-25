@@ -6,11 +6,11 @@ import sys
 from pathlib import Path
 
 from backup_core import BackupService, load_user_settings
-from project_config import build_backup_items
+from project_config import APP_TITLE, build_backup_items
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="AI配置备份助手命令行入口")
+    parser = argparse.ArgumentParser(description=f"{APP_TITLE}命令行入口")
     sub = parser.add_subparsers(dest="command", required=True)
 
     backup = sub.add_parser("backup", help="创建备份快照")

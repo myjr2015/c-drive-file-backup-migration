@@ -64,3 +64,5 @@ description: 本项目失败路线、风险和不要重复尝试的方案。
 - 不要在自动化发布时直接依赖普通 `git push`；Git Credential Manager 可能弹交互窗口或卡住，优先设置非交互环境变量并用 `credential.helper="!gh auth git-credential"`。
 - 不要把完整测试的 120 秒工具超时当作单测失败；当前完整 `unittest discover -v` 在本机约 120 秒，验证时应给足 10 分钟超时并阅读最终 exit code。
 - 不要只看 GitHub Actions 红叉就猜原因；必须用 `gh run view <run_id> --log-failed` 拉失败日志，确认是路径兼容、GUI 测试、还是控制台编码问题后再改。
+- 不要让 PyInstaller 在同时安装 PySide6 和 PyQt5 的全局 Python 环境里自动扫描全部依赖；它会因多个 Qt 绑定冲突失败，或者把 torch/pandas/scipy 等无关包打进发布包。必须在 spec 里显式排除。
+- 不要用 Windows PowerShell 5.1 直接处理中文路径的发布包压缩或中文 spec 文件名；本项目已遇到中文路径被解码成乱码导致 zip 路径找不到。发布脚本应由 Python 负责中文路径和 zip。
