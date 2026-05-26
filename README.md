@@ -33,7 +33,7 @@ V1.0.0
 在 GitHub Releases 下载 Windows 便携版：
 
 ```text
-Ai会话备份-V1.0.0-windows-portable.zip
+ai-session-backup-v1.0.0-windows-portable.zip
 ```
 
 解压后运行：

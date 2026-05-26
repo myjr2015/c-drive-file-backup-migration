@@ -15,7 +15,7 @@ from project_config import APP_TITLE, APP_VERSION
 
 APP_NAME = APP_TITLE
 RELEASE_VERSION = f"V{APP_VERSION}"
-ZIP_NAME = f"{APP_NAME}-{RELEASE_VERSION}-windows-portable.zip"
+ZIP_NAME = f"ai-session-backup-v{APP_VERSION}-windows-portable.zip"
 
 
 def run(command: list[str]) -> None:

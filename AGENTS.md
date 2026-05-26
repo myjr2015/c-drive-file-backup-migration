@@ -58,7 +58,7 @@
   - 入口脚本：`scripts/build_windows_release.py`
   - PowerShell 包装入口：`scripts/build_windows_release.ps1`
   - PyInstaller spec：`windows_portable.spec`
-  - 输出：`release/Ai会话备份-V1.0.0-windows-portable.zip`
+  - 输出：`release/ai-session-backup-v1.0.0-windows-portable.zip`
   - 打包时排除 PyQt5/PyQt6/PySide2、torch、pandas、scipy、matplotlib 等无关库，避免当前全局 Python 环境把无关依赖打进发布包。
 - 中文路径和中文文件名发布包优先用 Python 脚本处理；不要用 Windows PowerShell 5.1 直接负责中文路径压缩和中文 spec 路径，容易因编码解析错导致构建后找不到输出。
 
