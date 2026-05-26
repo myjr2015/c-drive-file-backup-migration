@@ -683,10 +683,11 @@ class FluentSmokeTests(unittest.TestCase):
         window.close()
         app.quit()
 
-    def test_schedule_status_accepts_legacy_task_name(self):
+    def test_schedule_status_uses_only_current_task_name(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
         from app_fluent import FluentBackupApp
+        from project_config import SCHEDULE_TASK_NAME
 
         class Result:
             def __init__(self, returncode: int) -> None:
@@ -694,12 +695,17 @@ class FluentSmokeTests(unittest.TestCase):
 
         app = QApplication.instance() or QApplication([])
         window = FluentBackupApp()
-        with patch.object(window, "query_schedule_task", return_value=Result(1)), patch.object(
-            window, "query_legacy_schedule_tasks", return_value=[Result(0)]
-        ):
+        with patch.object(window, "query_schedule_task", return_value=Result(1)) as query:
             window.refresh_schedule_status()
 
-        self.assertEqual(window.schedule_status.text(), "状态：已创建")
+        query.assert_called_once_with(SCHEDULE_TASK_NAME)
+        self.assertEqual(window.schedule_status.text(), "状态：未创建")
+        schedule_compat_methods = [
+            name
+            for name in dir(window)
+            if "schedule_tasks" in name and ("query" in name or "delete" in name)
+        ]
+        self.assertEqual(schedule_compat_methods, [])
         window.close()
         app.quit()
 

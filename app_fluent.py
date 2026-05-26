@@ -68,7 +68,6 @@ from backup_core import (
 from project_config import (
     APP_ICON_PATH,
     APP_TITLE,
-    LEGACY_SCHEDULE_TASK_NAMES,
     SCHEDULE_TASK_NAME,
     build_backup_items,
     build_sensitive_backup_warning,
@@ -1131,8 +1130,6 @@ class FluentBackupApp(MSFluentWindow):
 
     def refresh_schedule_status(self) -> None:
         result = self.query_schedule_task(SCHEDULE_TASK_NAME)
-        if result.returncode != 0:
-            result = next((legacy for legacy in self.query_legacy_schedule_tasks() if legacy.returncode == 0), result)
         created = result.returncode == 0
         self.schedule_status.setText("状态：已创建" if created else "状态：未创建")
         self.schedule_metric.set_value("已启用" if created else "未启用")
@@ -1183,7 +1180,6 @@ class FluentBackupApp(MSFluentWindow):
             config_path = self.user_settings_path.parent / "schedule.json"
             self.service.write_schedule_config(config_path, self.backup_root, selected_names, self.custom_items_config)
             launcher = Path(__file__).with_name("定时备份入口.bat")
-            self.delete_legacy_schedule_tasks()
             subprocess.run(
                 ["schtasks", "/Create", "/TN", SCHEDULE_TASK_NAME, "/SC", "DAILY", "/ST", schedule_time, "/TR", str(launcher), "/F"],
                 check=True,
@@ -1197,8 +1193,7 @@ class FluentBackupApp(MSFluentWindow):
     def delete_schedule(self) -> None:
         def job(log):
             result = subprocess.run(["schtasks", "/Delete", "/TN", SCHEDULE_TASK_NAME, "/F"], capture_output=True, text=True)
-            legacy_results = self.delete_legacy_schedule_tasks()
-            deleted = result.returncode == 0 or any(legacy.returncode == 0 for legacy in legacy_results)
+            deleted = result.returncode == 0
             log("定时备份任务已删除。" if deleted else "没有找到可删除的定时备份任务。")
 
         self._run_worker(job, refresh=True, success_text="定时备份状态已刷新")
@@ -1208,15 +1203,6 @@ class FluentBackupApp(MSFluentWindow):
             ["schtasks", "/Query", "/TN", task_name, "/FO", "LIST"],
             **self.service._hidden_subprocess_kwargs(),
         )
-
-    def query_legacy_schedule_tasks(self):
-        return [self.query_schedule_task(task_name) for task_name in LEGACY_SCHEDULE_TASK_NAMES]
-
-    def delete_legacy_schedule_tasks(self):
-        return [
-            subprocess.run(["schtasks", "/Delete", "/TN", task_name, "/F"], capture_output=True, text=True)
-            for task_name in LEGACY_SCHEDULE_TASK_NAMES
-        ]
 
     def restore_selected(self) -> None:
         row = self.restore_snapshot_list.currentRow()

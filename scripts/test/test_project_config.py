@@ -14,8 +14,8 @@ class ProjectConfigTests(unittest.TestCase):
         self.assertEqual(project_config.APP_VERSION, "1.0.0")
         self.assertEqual(project_config.GITHUB_REPOSITORY, "myjr2015/ai-session-backup")
         self.assertEqual(project_config.SCHEDULE_TASK_NAME, "Ai会话备份-定时备份")
-        self.assertIn("AI会话配置备份迁移-定时备份", project_config.LEGACY_SCHEDULE_TASK_NAMES)
-        self.assertIn("AI配置备份助手-定时备份", project_config.LEGACY_SCHEDULE_TASK_NAMES)
+        schedule_compat_names = [name for name in dir(project_config) if name.startswith("LEGACY") and "SCHEDULE" in name]
+        self.assertEqual(schedule_compat_names, [])
         self.assertEqual(project_config.APP_ICON_PATH, Path("assets/app.ico"))
         self.assertTrue(project_config.APP_ICON_PATH.exists())
 
