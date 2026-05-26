@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub 开源 UI 风格全景演示</title>
+  <style>
+    :root {
+      --font: "Microsoft YaHei UI", "Segoe UI", Arial, sans-serif;
+      --mono: "Cascadia Mono", Consolas, monospace;
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --text: #162033;
+      --muted: #667085;
+      --border: #d9e2ef;
+      --shadow: 0 18px 46px rgba(15, 23, 42, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      letter-spacing: 0;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 248px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px 14px;
+      border-right: 1px solid var(--border);
+      background: #f8fafc;
+      overflow: auto;
+    }
+    .brand {
+      margin: 0 0 4px;
+      font-size: 17px;
+      font-weight: 800;
+    }
+    .hint {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .nav-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 10px;
+      margin: 3px 0;
+      text-align: left;
+      background: transparent;
+      color: #334155;
+      font-family: var(--font);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .nav-btn.active {
+      background: #111827;
+      color: white;
+    }
+    .control-panel {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .control-title {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .control-field {
+      margin-bottom: 9px;
+    }
+    .control-field label {
+      display: block;
+      margin-bottom: 4px;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .control-field select {
+      width: 100%;
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0 8px;
+      background: #fff;
+      color: #1e293b;
+      font-family: var(--font);
+      font-size: 12px;
+    }
+    .option-summary {
+      margin-top: 10px;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: #475569;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .content {
+      padding: 18px;
+      min-width: 0;
+    }
+    .demo-page {
+      display: none;
+      min-height: calc(100vh - 36px);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: var(--panel);
+      border: 1px solid rgba(15, 23, 42, .08);
+    }
+    .demo-page.active { display: block; }
+    .page-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      min-height: calc(100vh - 36px);
+    }
+    .mini-nav {
+      padding: 18px 12px;
+      border-right: 1px solid currentColor;
+      border-color: rgba(100, 116, 139, .18);
+    }
+    .mini-logo {
+      margin-bottom: 18px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+    .mini-item {
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin: 4px 0;
+      font-size: 12px;
+      color: inherit;
+      opacity: .78;
+    }
+    .mini-item.active {
+      opacity: 1;
+      font-weight: 700;
+      background: rgba(100, 116, 139, .14);
+    }
+    .workspace {
+      padding: 20px;
+      min-width: 0;
+    }
+    .topline {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .title-block { flex: 1; min-width: 0; }
+    .eyebrow {
+      margin: 0 0 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: inherit;
+      opacity: .62;
+    }
+    .demo-title {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.18;
+      font-weight: 850;
+    }
+    .demo-copy {
+      margin: 7px 0 0;
+      color: inherit;
+      opacity: .72;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      height: 34px;
+      padding: 0 13px;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 700;
+      background: #fff;
+      color: inherit;
+    }
+    .btn.primary { color: white; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card, .table, .form, .notice {
+      border: 1px solid rgba(100, 116, 139, .22);
+      background: rgba(255,255,255,.74);
+    }
+    .card {
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .stat-label { margin: 0; font-size: 11px; opacity: .62; }
+    .stat-value { margin: 4px 0 3px; font-size: 22px; font-weight: 850; }
+    .stat-detail { margin: 0; font-size: 12px; opacity: .72; }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 12px;
+    }
+    .table {
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 22px minmax(120px, 1fr) 78px 92px;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(100, 116, 139, .16);
+      font-size: 12px;
+    }
+    .row:last-child { border-bottom: 0; }
+    .name { font-weight: 800; }
+    .path { font-size: 11px; opacity: .68; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(100,116,139,.14);
+    }
+    .form {
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .field {
+      margin-bottom: 10px;
+    }
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 11px;
+      font-weight: 800;
+      opacity: .72;
+    }
+    .input {
+      display: flex;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid rgba(100,116,139,.25);
+      border-radius: 8px;
+      padding: 0 10px;
+      font-size: 12px;
+      background: rgba(255,255,255,.8);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .notice {
+      margin-top: 12px;
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .tokenbar {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .token {
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(100,116,139,.14);
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+    .current-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 12px;
+    }
+    .current-options span {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(100,116,139,.14);
+      font-size: 11px;
+    }
+
+    body.font-segoe { --font: "Segoe UI", "Microsoft YaHei UI", Arial, sans-serif; }
+    body.font-inter { --font: Inter, "Segoe UI", "Microsoft YaHei UI", Arial, sans-serif; }
+    body.font-yahei { --font: "Microsoft YaHei UI", "Segoe UI", Arial, sans-serif; }
+    body.font-cascadia { --font: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace; }
+    body.font-roboto { --font: Roboto, "Microsoft YaHei UI", Arial, sans-serif; }
+
+    body.buttons-square .btn { border-radius: 3px !important; height: 32px; }
+    body.buttons-soft .btn { border-radius: 8px !important; height: 34px; }
+    body.buttons-pill .btn { border-radius: 999px !important; height: 36px; padding-inline: 16px; }
+    body.buttons-flat .btn { box-shadow: none !important; border-color: transparent !important; }
+    body.buttons-elevated .btn { box-shadow: 0 8px 18px rgba(15,23,42,.16) !important; }
+
+    body.nav-top .page-grid { grid-template-columns: 1fr !important; }
+    body.nav-top .mini-nav {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid rgba(100,116,139,.18);
+    }
+    body.nav-top .mini-logo { margin: 0 10px 0 0; white-space: nowrap; }
+    body.nav-rail .page-grid { grid-template-columns: 74px 1fr !important; }
+    body.nav-rail .mini-logo { writing-mode: vertical-rl; }
+    body.nav-rail .mini-item { text-align: center; padding: 10px 4px; font-size: 11px; }
+    body.nav-none .page-grid { grid-template-columns: 1fr !important; }
+    body.nav-none .mini-nav { display: none !important; }
+
+    body.layout-dense .workspace { padding: 12px; }
+    body.layout-dense .stats { gap: 6px; margin-bottom: 8px; }
+    body.layout-dense .card, body.layout-dense .form { padding: 8px; }
+    body.layout-dense .row { padding: 7px 9px; }
+    body.layout-comfort .workspace { padding: 20px; }
+    body.layout-comfort .row { padding: 10px 12px; }
+    body.layout-relaxed .workspace { padding: 28px; }
+    body.layout-relaxed .stats, body.layout-relaxed .two-col { gap: 16px; }
+    body.layout-relaxed .card, body.layout-relaxed .form { padding: 18px; }
+    body.layout-relaxed .row { padding: 14px 16px; }
+    body.layout-dashboard .two-col { grid-template-columns: 1fr; }
+    body.layout-dashboard .table { min-height: 260px; }
+
+    body.theme-dark .demo-page { background: #0f172a; color: #f8fafc; }
+    body.theme-dark .card,
+    body.theme-dark .table,
+    body.theme-dark .form,
+    body.theme-dark .notice,
+    body.theme-dark .input {
+      background: rgba(15,23,42,.84) !important;
+      border-color: #334155 !important;
+      color: #f8fafc;
+    }
+    body.theme-dark .mini-nav { background: rgba(2,6,23,.68) !important; color: #e2e8f0; }
+    body.theme-light .demo-page { color: inherit; }
+    body.theme-brand .shadcn .btn.primary { background: #2563eb; }
+    body.theme-brand .tauri .btn.primary { background: #38bdf8; color: #082f49; }
+    body.theme-brand .avalonia .btn.primary { background: #7c3aed; }
+    body.theme-brand .material-xaml .btn.primary { background: #006a6a; }
+    body.theme-brand .flet .btn.primary { background: #009688; }
+    body.theme-brand .customtkinter .btn.primary { background: #2da44e; }
+    body.theme-brand .uno .btn.primary { background: #7f52ff; }
+    body.theme-brand .pyqt-fluent .btn.primary { background: #0f6cbd; }
+
+    .shadcn { background: #fafafa; color: #0f172a; }
+    .shadcn .mini-nav { background: #fff; }
+    .shadcn .btn { border-color: #e5e7eb; border-radius: 6px; background: #fff; }
+    .shadcn .btn.primary { background: #111827; }
+    .shadcn .card, .shadcn .table, .shadcn .form, .shadcn .notice { border-color: #e5e7eb; background: #fff; border-radius: 8px; }
+    .shadcn .pill { background: #f3f4f6; color: #111827; }
+
+    .tauri { background: #111827; color: #f8fafc; }
+    .tauri .page-grid { grid-template-columns: 74px 1fr; }
+    .tauri .mini-nav { background: #0b1020; color: #cbd5e1; }
+    .tauri .mini-logo { writing-mode: vertical-rl; letter-spacing: 0; }
+    .tauri .mini-item { text-align: center; padding: 10px 4px; font-size: 11px; }
+    .tauri .workspace { background: radial-gradient(circle at top right, rgba(56,189,248,.22), transparent 34%), #111827; }
+    .tauri .btn { background: #1f2937; color: #f8fafc; border-color: #334155; border-radius: 9px; }
+    .tauri .btn.primary { background: #22c55e; color: #082f1a; }
+    .tauri .card, .tauri .table, .tauri .form, .tauri .notice { background: rgba(15,23,42,.78); border-color: #334155; color: #f8fafc; }
+    .tauri .input { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+
+    .avalonia { background: #f4f7fb; color: #19202a; }
+    .avalonia .mini-nav { background: #eef3f9; }
+    .avalonia .mini-item.active { background: #dce8f5; }
+    .avalonia .btn { border-radius: 3px; border-color: #aab7c7; background: #f8fbff; }
+    .avalonia .btn.primary { background: #2563eb; color: white; }
+    .avalonia .card, .avalonia .table, .avalonia .form, .avalonia .notice { border-radius: 4px; background: #fff; border-color: #cfd8e3; }
+    .avalonia .row { min-height: 42px; }
+
+    .material-xaml { background: #fffbfe; color: #1d1b20; }
+    .material-xaml .mini-nav { background: #f7f2fa; }
+    .material-xaml .mini-item { border-radius: 18px; }
+    .material-xaml .mini-item.active { background: #e8def8; color: #4a4458; }
+    .material-xaml .btn { border-radius: 20px; background: #fffbfe; border-color: #79747e; }
+    .material-xaml .btn.primary { background: #6750a4; color: #fff; }
+    .material-xaml .card, .material-xaml .table, .material-xaml .form, .material-xaml .notice { border-radius: 18px; background: #fff; border-color: #e7e0ec; }
+    .material-xaml .pill { background: #e8def8; color: #4a4458; }
+
+    .flet { background: #eef3ff; color: #14213d; }
+    .flet .mini-nav { background: #ffffff; }
+    .flet .mini-item { border-radius: 14px; }
+    .flet .mini-item.active { background: #e8eaf6; color: #303f9f; }
+    .flet .btn { height: 38px; border-radius: 12px; background: #fff; border-color: #c5cae9; box-shadow: 0 3px 8px rgba(63,81,181,.12); }
+    .flet .btn.primary { background: #3f51b5; color: #fff; }
+    .flet .card, .flet .table, .flet .form, .flet .notice { border-radius: 16px; background: #fff; border-color: #dce2ff; box-shadow: 0 8px 18px rgba(63,81,181,.10); }
+
+    .customtkinter { background: #e9eef3; color: #1f2328; }
+    .customtkinter .page-grid { grid-template-columns: 160px 1fr; }
+    .customtkinter .mini-nav { background: #2b2f33; color: #e5e7eb; }
+    .customtkinter .mini-item { border-radius: 6px; }
+    .customtkinter .mini-item.active { background: #1f6aa5; }
+    .customtkinter .btn { border-radius: 7px; background: #dfe6ed; border-color: #c4ccd4; }
+    .customtkinter .btn.primary { background: #1f6aa5; color: #fff; }
+    .customtkinter .card, .customtkinter .table, .customtkinter .form, .customtkinter .notice { border-radius: 8px; background: #f8fafc; border-color: #ccd4dc; }
+    .customtkinter .input { background: #edf2f7; }
+
+    .uno { background: #f3f6fb; color: #202124; }
+    .uno .mini-nav { background: #fbfcff; }
+    .uno .mini-item { border-radius: 5px; }
+    .uno .mini-item.active { background: #e7f1ff; color: #005a9e; }
+    .uno .btn { border-radius: 4px; background: #fff; border-color: #d1d5db; }
+    .uno .btn.primary { background: #005a9e; color: #fff; }
+    .uno .card, .uno .table, .uno .form, .uno .notice { border-radius: 6px; background: #fff; border-color: #d6dbe4; }
+
+    .pyqt-fluent { background: #f7fbff; color: #1f1f1f; }
+    .pyqt-fluent .mini-nav { background: rgba(255,255,255,.76); backdrop-filter: blur(16px); }
+    .pyqt-fluent .mini-item { border-radius: 7px; }
+    .pyqt-fluent .mini-item.active { background: #eaf4ff; color: #0067c0; }
+    .pyqt-fluent .btn { border-radius: 6px; background: rgba(255,255,255,.8); border-color: #d8e6f5; }
+    .pyqt-fluent .btn.primary { background: #0078d4; color: #fff; }
+    .pyqt-fluent .card, .pyqt-fluent .table, .pyqt-fluent .form, .pyqt-fluent .notice { border-radius: 8px; background: rgba(255,255,255,.82); border-color: #dce8f5; box-shadow: 0 6px 20px rgba(0,120,212,.09); }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .page-grid, .tauri .page-grid, .customtkinter .page-grid { grid-template-columns: 1fr; }
+      .mini-nav { display: flex; gap: 6px; overflow-x: auto; border-right: 0; border-bottom: 1px solid rgba(100,116,139,.18); }
+      .mini-logo { display: none; }
+      .stats, .two-col { grid-template-columns: 1fr; }
+      .topline { flex-direction: column; }
+      .actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1 class="brand">GitHub UI 风格全景</h1>
+      <p class="hint">每个开源项目一页完整演示。这里是视觉与排版对比，不代表正式项目已迁移技术栈。</p>
+      <button class="nav-btn active" data-target="shadcn">shadcn/ui</button>
+      <button class="nav-btn" data-target="tauri">Tauri</button>
+      <button class="nav-btn" data-target="avalonia">Avalonia UI</button>
+      <button class="nav-btn" data-target="material-xaml">Material Design In XAML</button>
+      <button class="nav-btn" data-target="flet">Flet</button>
+      <button class="nav-btn" data-target="customtkinter">CustomTkinter</button>
+      <button class="nav-btn" data-target="uno">Uno Platform</button>
+      <button class="nav-btn" data-target="pyqt-fluent">PyQt-Fluent-Widgets</button>
+      <div class="control-panel">
+        <p class="control-title">当前项目可调选项</p>
+        <div class="control-field"><label for="themeSelect">主题/风格</label><select id="themeSelect"></select></div>
+        <div class="control-field"><label for="fontSelect">字体</label><select id="fontSelect"></select></div>
+        <div class="control-field"><label for="buttonSelect">按钮</label><select id="buttonSelect"></select></div>
+        <div class="control-field"><label for="navSelect">导航</label><select id="navSelect"></select></div>
+        <div class="control-field"><label for="layoutSelect">布局</label><select id="layoutSelect"></select></div>
+        <div class="option-summary" id="optionSummary">选择左侧项目后查看默认选项。</div>
+      </div>
+    </aside>
+    <main class="content">
+
+      <section class="demo-page shadcn active" data-project="shadcn">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">shadcn/ui</div><div class="mini-item active">Dashboard</div><div class="mini-item">Backups</div><div class="mini-item">Migrations</div><div class="mini-item">Settings</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">React / Tailwind / Radix</p><h2 class="demo-title">Ai会话备份</h2><p class="demo-copy">黑白高对比、边框克制、组件源码可直接进入项目，适合 AI 协作和多软件统一。</p></div><div class="actions"><button class="btn">选择目录</button><button class="btn primary">立即备份</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">Protected</p><p class="stat-value">7</p><p class="stat-detail">dot folders</p></div><div class="card"><p class="stat-label">Snapshot</p><p class="stat-value">22:30</p><p class="stat-detail">scheduled</p></div><div class="card"><p class="stat-label">Status</p><p class="stat-value">OK</p><p class="stat-detail">verified</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>✓</span><div><div class="name">.codex</div><div class="path">C:\Users\me\.codex</div></div><span>2.4 GB</span><span class="pill">selected</span></div><div class="row"><span>✓</span><div><div class="name">.happy</div><div class="path">C:\Users\me\.happy</div></div><span>316 MB</span><span class="pill">selected</span></div><div class="row"><span></span><div><div class="name">.ssh</div><div class="path">C:\Users\me\.ssh</div></div><span>96 KB</span><span class="pill">sensitive</span></div></div><div class="form"><div class="field"><label>Backup root</label><div class="input">D:\code\backup</div></div><div class="field"><label>Sort</label><div class="input">最近更新</div></div><button class="btn primary">保存配置</button></div></div>
+            <div class="notice">特点：shadcn/ui 的强项是代码所有权、Design Tokens 和 Web 生态统一，不是传统桌面控件。</div>
+            <div class="tokenbar"><span class="token">radius=6</span><span class="token">primary=#111827</span><span class="token">border=#e5e7eb</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page tauri" data-project="tauri">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">Tauri</div><div class="mini-item active">Home</div><div class="mini-item">Files</div><div class="mini-item">Shell</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">Rust shell / WebView</p><h2 class="demo-title">小体积桌面壳 + Web UI</h2><p class="demo-copy">Tauri 更像安全桌面容器，视觉可接入任何 Web 设计系统，适合以后跨语言统一。</p></div><div class="actions"><button class="btn">打开 D 盘</button><button class="btn primary">Run backup</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">Bundle</p><p class="stat-value">Small</p><p class="stat-detail">WebView runtime</p></div><div class="card"><p class="stat-label">Bridge</p><p class="stat-value">Rust</p><p class="stat-detail">commands</p></div><div class="card"><p class="stat-label">UI</p><p class="stat-value">Web</p><p class="stat-detail">CSS driven</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>●</span><div><div class="name">copy_files</div><div class="path">command bridge to native backup core</div></div><span>ready</span><span class="pill">safe</span></div><div class="row"><span>●</span><div><div class="name">junction_create</div><div class="path">requires elevated Windows operation</div></div><span>admin</span><span class="pill">prompt</span></div><div class="row"><span>●</span><div><div class="name">path_export</div><div class="path">environment variables snapshot</div></div><span>json</span><span class="pill">local</span></div></div><div class="form"><div class="field"><label>Command</label><div class="input">invoke("create_snapshot")</div></div><div class="field"><label>Permission</label><div class="input">文件系统 / shell / admin prompt</div></div><button class="btn primary">测试桥接</button></div></div>
+            <div class="notice">特点：Tauri 本身不是 UI 风格库，真正差异来自你选择的前端体系。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page avalonia" data-project="avalonia">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">Avalonia UI</div><div class="mini-item active">Overview</div><div class="mini-item">Backup</div><div class="mini-item">Restore</div><div class="mini-item">Logs</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">C# / XAML / Skia</p><h2 class="demo-title">跨平台 .NET 桌面工具</h2><p class="demo-copy">更像 WPF 的跨平台继承者，严肃、稳定、控件边界清楚，适合 C# 长期工程。</p></div><div class="actions"><button class="btn">Browse</button><button class="btn primary">Start Backup</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">Selected Items</p><p class="stat-value">5</p><p class="stat-detail">bound from ViewModel</p></div><div class="card"><p class="stat-label">Migration</p><p class="stat-value">2</p><p class="stat-detail">junction entries</p></div><div class="card"><p class="stat-label">Health</p><p class="stat-value">Good</p><p class="stat-detail">compiled XAML</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>☑</span><div><div class="name">.vscode</div><div class="path">D:\code\backup\迁移后的真实目录\.vscode</div></div><span>128 MB</span><span class="pill">linked</span></div><div class="row"><span>☑</span><div><div class="name">.claude</div><div class="path">C:\Users\me\.claude</div></div><span>412 MB</span><span class="pill">normal</span></div><div class="row"><span>☐</span><div><div class="name">自定义/脚本</div><div class="path">D:\scripts</div></div><span>68 MB</span><span class="pill">custom</span></div></div><div class="form"><div class="field"><label>ViewModel</label><div class="input">BackupPageViewModel.SelectedItems</div></div><div class="field"><label>Theme</label><div class="input">FluentTheme / SimpleTheme</div></div><button class="btn primary">Apply</button></div></div>
+            <div class="notice">特点：Avalonia 适合 C# 项目，但 Python 主线迁过去成本很高。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page material-xaml" data-project="material-xaml">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">Material XAML</div><div class="mini-item active">Today</div><div class="mini-item">Folders</div><div class="mini-item">Tasks</div><div class="mini-item">Theme</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">WPF / Material Design</p><h2 class="demo-title">Material 风格的 Windows 管理工具</h2><p class="demo-copy">大圆角、紫色主色、Chip 状态和强调按钮，适合更现代但不追求 Windows 原生感的 WPF。</p></div><div class="actions"><button class="btn">取消迁移</button><button class="btn primary">备份 Path</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">Config</p><p class="stat-value">Saved</p><p class="stat-detail">auto persisted</p></div><div class="card"><p class="stat-label">Path</p><p class="stat-value">42</p><p class="stat-detail">entries exported</p></div><div class="card"><p class="stat-label">Mode</p><p class="stat-value">Light</p><p class="stat-detail">palette helper</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>✓</span><div><div class="name">.gemini</div><div class="path">C:\Users\me\.gemini</div></div><span>22 MB</span><span class="pill">chip</span></div><div class="row"><span>✓</span><div><div class="name">.ssh</div><div class="path">sensitive plaintext warning</div></div><span>96 KB</span><span class="pill">warn</span></div><div class="row"><span>✓</span><div><div class="name">Path</div><div class="path">环境变量Path备份\2026-05-25</div></div><span>json</span><span class="pill">export</span></div></div><div class="form"><div class="field"><label>Seed color</label><div class="input">DeepPurple</div></div><div class="field"><label>Control style</label><div class="input">Filled / Outlined / Elevated</div></div><button class="btn primary">Save</button></div></div>
+            <div class="notice">特点：MaterialDesignInXaml 对 WPF 很友好，但风格会明显偏 Material，不是微软设置页。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page flet" data-project="flet">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">Flet</div><div class="mini-item active">Summary</div><div class="mini-item">Cards</div><div class="mini-item">Mobile</div><div class="mini-item">Theme</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">Python / Flutter renderer</p><h2 class="demo-title">Python 写 Flutter 感桌面应用</h2><p class="demo-copy">视觉更圆润、按钮更高、阴影更明显，适合想用 Python 快速做跨平台 UI 的项目。</p></div><div class="actions"><button class="btn">添加文件夹</button><button class="btn primary">立即同步</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">Page controls</p><p class="stat-value">38</p><p class="stat-detail">declarative</p></div><div class="card"><p class="stat-label">Theme seed</p><p class="stat-value">Indigo</p><p class="stat-detail">Material color</p></div><div class="card"><p class="stat-label">Target</p><p class="stat-value">Multi</p><p class="stat-detail">desktop/web/mobile</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>☑</span><div><div class="name">.codex</div><div class="path">Flutter ListTile style row</div></div><span>2.4 GB</span><span class="pill">tile</span></div><div class="row"><span>☑</span><div><div class="name">.happy</div><div class="path">Card + Checkbox + trailing chip</div></div><span>316 MB</span><span class="pill">tile</span></div><div class="row"><span>☐</span><div><div class="name">.cache</div><div class="path">optional dot folder</div></div><span>64 MB</span><span class="pill">skip</span></div></div><div class="form"><div class="field"><label>Python state</label><div class="input">page.update()</div></div><div class="field"><label>Layout</label><div class="input">Column / Row / Card</div></div><button class="btn primary">Update</button></div></div>
+            <div class="notice">特点：Flet 对 Python 友好，但视觉会自然偏 Flutter/Material。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page customtkinter" data-project="customtkinter">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">CustomTkinter</div><div class="mini-item active">主页</div><div class="mini-item">备份</div><div class="mini-item">迁移</div><div class="mini-item">日志</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">Python / Tkinter wrapper</p><h2 class="demo-title">轻量脚本工具现代化</h2><p class="demo-copy">深色左栏、简单控件、低依赖，适合小工具；复杂列表和高级交互不如 Qt/Web。</p></div><div class="actions"><button class="btn">刷新</button><button class="btn primary">开始备份</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">依赖</p><p class="stat-value">轻</p><p class="stat-detail">Tk base</p></div><div class="card"><p class="stat-label">主题</p><p class="stat-value">JSON</p><p class="stat-detail">blue/dark-blue</p></div><div class="card"><p class="stat-label">复杂度</p><p class="stat-value">低</p><p class="stat-detail">small tools</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>[x]</span><div><div class="name">.codex</div><div class="path">simple row widget</div></div><span>2.4 GB</span><span class="pill">ok</span></div><div class="row"><span>[x]</span><div><div class="name">.ssh</div><div class="path">manual warning needed</div></div><span>96 KB</span><span class="pill">key</span></div><div class="row"><span>[ ]</span><div><div class="name">自定义</div><div class="path">D:\tools</div></div><span>18 MB</span><span class="pill">off</span></div></div><div class="form"><div class="field"><label>Theme file</label><div class="input">blue.json</div></div><div class="field"><label>Scale</label><div class="input">100%</div></div><button class="btn primary">保存</button></div></div>
+            <div class="notice">特点：CustomTkinter 是轻量优先，不适合把当前软件复杂 UI 全部迁过去。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page uno" data-project="uno">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">Uno Platform</div><div class="mini-item active">Home</div><div class="mini-item">Backup</div><div class="mini-item">Path</div><div class="mini-item">Settings</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">C# / WinUI API / WASM</p><h2 class="demo-title">WinUI 范式多端映射</h2><p class="demo-copy">保留 Windows/WinUI 的结构语言，同时能映射到多平台，适合 C# 团队。</p></div><div class="actions"><button class="btn">Open settings</button><button class="btn primary">Create snapshot</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">WinUI</p><p class="stat-value">API</p><p class="stat-detail">mapped</p></div><div class="card"><p class="stat-label">Targets</p><p class="stat-value">Many</p><p class="stat-detail">desktop/mobile/web</p></div><div class="card"><p class="stat-label">XAML</p><p class="stat-value">Yes</p><p class="stat-detail">C# tooling</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>☑</span><div><div class="name">.vscode</div><div class="path">WinUI ListView item</div></div><span>128 MB</span><span class="pill">linked</span></div><div class="row"><span>☑</span><div><div class="name">.claude</div><div class="path">Settings-like row</div></div><span>412 MB</span><span class="pill">sync</span></div><div class="row"><span>☐</span><div><div class="name">Path</div><div class="path">Environment variable backup</div></div><span>42</span><span class="pill">export</span></div></div><div class="form"><div class="field"><label>Control</label><div class="input">NavigationView + CommandBar</div></div><div class="field"><label>Theme</label><div class="input">Fluent resources</div></div><button class="btn primary">Apply</button></div></div>
+            <div class="notice">特点：Uno 对 C# 和 WinUI 队伍友好，不是 Python 当前主线的低成本选择。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-page pyqt-fluent" data-project="pyqt-fluent">
+        <div class="page-grid">
+          <nav class="mini-nav"><div class="mini-logo">PyQt-Fluent-Widgets</div><div class="mini-item active">总览</div><div class="mini-item">备份</div><div class="mini-item">迁移</div><div class="mini-item">环境</div><div class="mini-item">日志</div></nav>
+          <div class="workspace">
+            <div class="current-options" data-current-options></div>
+            <div class="topline"><div class="title-block"><p class="eyebrow">Python / Qt / Fluent Design</p><h2 class="demo-title">当前主线最接近的完整风格</h2><p class="demo-copy">浅蓝强调、亚克力感、系统设置页布局，适合当前 Windows 本地工具继续打磨。</p></div><div class="actions"><button class="btn">选择目录</button><button class="btn primary">立即备份</button></div></div>
+            <div class="stats"><div class="card"><p class="stat-label">当前保护</p><p class="stat-value">7 项</p><p class="stat-detail">点号目录</p></div><div class="card"><p class="stat-label">计划任务</p><p class="stat-value">22:30</p><p class="stat-detail">每天运行</p></div><div class="card"><p class="stat-label">迁移</p><p class="stat-value">2 项</p><p class="stat-detail">Junction</p></div></div>
+            <div class="two-col"><div class="table"><div class="row"><span>✓</span><div><div class="name">.codex</div><div class="path">C:\Users\myjr2\.codex · 今天 10:30</div></div><span>2.4 GB</span><span class="pill">已备份</span></div><div class="row"><span>✓</span><div><div class="name">.vscode</div><div class="path">D:\code\backup\迁移后的真实目录\.vscode</div></div><span>128 MB</span><span class="pill">已迁移</span></div><div class="row"><span></span><div><div class="name">.ssh</div><div class="path">敏感明文，恢复前确认目标</div></div><span>96 KB</span><span class="pill">敏感</span></div></div><div class="form"><div class="field"><label>备份目录</label><div class="input">D:\code\backup</div></div><div class="field"><label>排序</label><div class="input">已迁移 / 最近更新 / 从大到小</div></div><button class="btn primary">保存配置</button></div></div>
+            <div class="notice">特点：这就是当前 PySide6 + qfluentwidgets 方向，差异主要应靠排版和信息架构，而不是乱改颜色。</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+  <script>
+    const projectOptions = {
+      "shadcn": {
+        themes: [["light", "默认 Light"], ["dark", "Dark"], ["brand", "品牌蓝变量"]],
+        fonts: [["inter", "Inter"], ["segoe", "Segoe UI"], ["yahei", "微软雅黑 UI"]],
+        buttons: [["soft", "默认描边"], ["square", "紧凑直角"], ["pill", "圆角胶囊"]],
+        navs: [["side", "侧边栏"], ["top", "顶部标签"], ["none", "无导航"]],
+        layouts: [["comfort", "默认内容密度"], ["dense", "紧凑"], ["dashboard", "仪表盘纵向"]]
+      },
+      "tauri": {
+        themes: [["dark", "默认深色壳"], ["light", "浅色 WebView"], ["brand", "霓虹品牌色"]],
+        fonts: [["segoe", "系统 UI"], ["inter", "Inter"], ["cascadia", "Cascadia Mono"]],
+        buttons: [["soft", "桌面软圆角"], ["flat", "扁平"], ["elevated", "悬浮"]],
+        navs: [["rail", "默认窄轨道"], ["side", "侧边栏"], ["top", "顶部栏"]],
+        layouts: [["comfort", "标准"], ["dense", "紧凑"], ["relaxed", "宽松"]]
+      },
+      "avalonia": {
+        themes: [["light", "FluentTheme Light"], ["dark", "FluentTheme Dark"], ["brand", "SimpleTheme 强调色"]],
+        fonts: [["segoe", "Segoe UI"], ["yahei", "微软雅黑 UI"], ["inter", "Inter"]],
+        buttons: [["square", "默认方角"], ["soft", "轻圆角"], ["flat", "扁平"]],
+        navs: [["side", "NavigationView"], ["top", "顶部 Tab"], ["none", "单页"]],
+        layouts: [["comfort", "桌面标准"], ["dense", "数据密集"], ["relaxed", "触控宽松"]]
+      },
+      "material-xaml": {
+        themes: [["light", "BundledTheme Light"], ["dark", "BundledTheme Dark"], ["brand", "Material You 色种"]],
+        fonts: [["roboto", "Roboto"], ["segoe", "Segoe UI"], ["yahei", "微软雅黑 UI"]],
+        buttons: [["pill", "默认圆角"], ["elevated", "Elevated"], ["flat", "Text/Flat"]],
+        navs: [["side", "抽屉导航"], ["top", "顶部 Tabs"], ["none", "表单页"]],
+        layouts: [["comfort", "Material 标准"], ["relaxed", "触控宽松"], ["dense", "紧凑表格"]]
+      },
+      "flet": {
+        themes: [["light", "ThemeMode Light"], ["dark", "ThemeMode Dark"], ["brand", "color_scheme_seed"]],
+        fonts: [["roboto", "Roboto"], ["segoe", "Segoe UI"], ["yahei", "微软雅黑 UI"]],
+        buttons: [["pill", "Material 圆角"], ["elevated", "ElevatedButton"], ["soft", "OutlinedButton"]],
+        navs: [["side", "NavigationRail"], ["top", "Tabs"], ["none", "单页 Column"]],
+        layouts: [["relaxed", "默认舒展"], ["comfort", "标准"], ["dense", "紧凑"]]
+      },
+      "customtkinter": {
+        themes: [["light", "Light + blue"], ["dark", "Dark-blue"], ["brand", "Green theme"]],
+        fonts: [["segoe", "Segoe UI"], ["yahei", "微软雅黑 UI"], ["cascadia", "等宽脚本风"]],
+        buttons: [["soft", "默认圆角"], ["square", "紧凑直角"], ["flat", "扁平"]],
+        navs: [["side", "左侧菜单"], ["top", "顶部按钮"], ["none", "单窗口"]],
+        layouts: [["dense", "小工具紧凑"], ["comfort", "标准"], ["relaxed", "宽松"]]
+      },
+      "uno": {
+        themes: [["light", "Fluent Light"], ["dark", "Fluent Dark"], ["brand", "Material Toolkit 色种"]],
+        fonts: [["segoe", "Segoe UI"], ["yahei", "微软雅黑 UI"], ["inter", "Inter"]],
+        buttons: [["square", "WinUI 默认"], ["soft", "轻圆角"], ["pill", "胶囊"]],
+        navs: [["side", "NavigationView"], ["top", "Top NavigationView"], ["rail", "紧凑 Pane"]],
+        layouts: [["comfort", "WinUI 标准"], ["dense", "紧凑"], ["relaxed", "触控"]]
+      },
+      "pyqt-fluent": {
+        themes: [["light", "Light"], ["dark", "Dark"], ["brand", "自定义主题色"]],
+        fonts: [["yahei", "微软雅黑 UI"], ["segoe", "Segoe UI"], ["inter", "Inter"]],
+        buttons: [["soft", "默认 Fluent"], ["pill", "Pill PushButton"], ["flat", "透明按钮"]],
+        navs: [["side", "侧边 NavigationInterface"], ["top", "Pivot 顶部"], ["rail", "窄栏"]],
+        layouts: [["dense", "当前紧凑"], ["comfort", "标准"], ["relaxed", "宽松"]]
+      }
+    };
+
+    const controlMap = {
+      themes: document.getElementById("themeSelect"),
+      fonts: document.getElementById("fontSelect"),
+      buttons: document.getElementById("buttonSelect"),
+      navs: document.getElementById("navSelect"),
+      layouts: document.getElementById("layoutSelect")
+    };
+    const summary = document.getElementById("optionSummary");
+    const buttons = [...document.querySelectorAll(".nav-btn")];
+    const pages = [...document.querySelectorAll(".demo-page")];
+    let currentProject = "shadcn";
+
+    function renderControls(projectKey) {
+      const options = projectOptions[projectKey];
+      Object.entries(controlMap).forEach(([key, select]) => {
+        select.innerHTML = "";
+        options[key].forEach(([value, label], index) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = index === 0;
+          select.appendChild(option);
+        });
+      });
+      summary.textContent = [
+        `主题：${options.themes.map((item) => item[1]).join(" / ")}`,
+        `字体：${options.fonts.map((item) => item[1]).join(" / ")}`,
+        `按钮：${options.buttons.map((item) => item[1]).join(" / ")}`,
+        `导航：${options.navs.map((item) => item[1]).join(" / ")}`,
+        `布局：${options.layouts.map((item) => item[1]).join(" / ")}`
+      ].join("；");
+      applyOptions();
+    }
+
+    function applyOptions() {
+      document.body.classList.remove(
+        "theme-light", "theme-dark", "theme-brand",
+        "font-segoe", "font-inter", "font-yahei", "font-cascadia", "font-roboto",
+        "buttons-square", "buttons-soft", "buttons-pill", "buttons-flat", "buttons-elevated",
+        "nav-side", "nav-top", "nav-rail", "nav-none",
+        "layout-dense", "layout-comfort", "layout-relaxed", "layout-dashboard"
+      );
+      document.body.classList.add(
+        `theme-${controlMap.themes.value}`,
+        `font-${controlMap.fonts.value}`,
+        `buttons-${controlMap.buttons.value}`,
+        `nav-${controlMap.navs.value}`,
+        `layout-${controlMap.layouts.value}`
+      );
+      const activePage = pages.find((page) => page.dataset.project === currentProject);
+      if (activePage) {
+        const labels = [
+          controlMap.themes.options[controlMap.themes.selectedIndex]?.textContent,
+          controlMap.fonts.options[controlMap.fonts.selectedIndex]?.textContent,
+          controlMap.buttons.options[controlMap.buttons.selectedIndex]?.textContent,
+          controlMap.navs.options[controlMap.navs.selectedIndex]?.textContent,
+          controlMap.layouts.options[controlMap.layouts.selectedIndex]?.textContent
+        ];
+        activePage.querySelector("[data-current-options]").innerHTML = labels.map((label) => `<span>${label}</span>`).join("");
+      }
+    }
+
+    function setProject(target) {
+      currentProject = target;
+      buttons.forEach((item) => item.classList.toggle("active", item.dataset.target === target));
+      pages.forEach((page) => page.classList.toggle("active", page.dataset.project === target));
+      renderControls(target);
+    }
+
+    buttons.forEach((button) => button.addEventListener("click", () => setProject(button.dataset.target)));
+    Object.values(controlMap).forEach((select) => select.addEventListener("change", applyOptions));
+    setProject(currentProject);
+  </script>
+</body>
+</html>

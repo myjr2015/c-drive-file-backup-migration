@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QSizePolicy,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -60,6 +61,7 @@ from backup_core import (
     BackupService,
     LinkMigrationStatus,
     ScannedItem,
+    describe_migration_error,
     load_user_settings,
     write_user_settings,
 )
@@ -99,14 +101,23 @@ QLabel#MetricValue {
     font-weight: 700;
 }
 CardWidget#MigratedLinkCard {
-    border: 1px solid #8ec5ff;
-    background: rgba(0, 120, 212, 0.08);
+    border: 1px solid #2f86d9;
+    background: rgba(0, 120, 212, 0.24);
+}
+CardWidget#BrokenLinkCard {
+    border: 1px solid #d89b00;
+    background: rgba(255, 185, 0, 0.20);
 }
 TextEdit {
     font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI";
     font-size: 11px;
 }
+QLabel#WarningHint {
+    color: #c42b1c;
+}
 """
+
+LINK_SORT_MIGRATED_TEXT = "已经迁移"
 
 
 class Worker(QThread):
@@ -154,6 +165,7 @@ class BackupItemCard(CardWidget):
         badge: str = "",
         extra_details: list[str] | None = None,
         tooltip: str | None = None,
+        open_actions: list[tuple[str, Path]] | None = None,
     ) -> None:
         super().__init__()
         self.item = scanned.item
@@ -188,8 +200,12 @@ class BackupItemCard(CardWidget):
         layout.addWidget(self.title_line, 1)
 
         self.checkbox.toggled.connect(lambda value: self.toggled.emit(self.item.name, value))
-        self._context_actions = [Action(FluentIcon.FOLDER, "打开当前目录")]
-        self._context_actions[0].triggered.connect(lambda: self.open_directory_requested.emit(self.source_path))
+        action_specs = open_actions or [("打开当前目录", self.source_path)]
+        self._context_actions = []
+        for text, path in action_specs:
+            action = Action(FluentIcon.FOLDER, text)
+            action.triggered.connect(lambda checked=False, target=Path(path): self.open_directory_requested.emit(target))
+            self._context_actions.append(action)
         for widget in [self, self.title_line]:
             widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             widget.customContextMenuRequested.connect(self._show_context_menu)
@@ -339,6 +355,7 @@ class FluentBackupApp(MSFluentWindow):
         self.worker: Worker | None = None
         self.scan_worker: ScanWorker | None = None
         self._active_info_bar = None
+        self._link_action_busy = False
         self.scanned_items: list[ScannedItem] = []
         self.last_link_store_path = self.service.default_link_store_root()
         self._build_ui()
@@ -526,6 +543,8 @@ class FluentBackupApp(MSFluentWindow):
 
         main_layout.addWidget(self._build_next_action_card())
         main_layout.addWidget(self._build_schedule_card())
+        self.protection_guide_card = self._build_protection_guide_card()
+        main_layout.addWidget(self.protection_guide_card)
 
         self.dashboard_metrics_panel = self._build_metrics_panel()
         main_layout.addWidget(self.dashboard_metrics_panel)
@@ -536,7 +555,7 @@ class FluentBackupApp(MSFluentWindow):
 
     def _build_items_page(self) -> QWidget:
         page, layout = self._base_page()
-        layout.addWidget(self._section_title("备份", "选择要保护的用户目录、AI 会话和开发配置。"))
+        layout.addWidget(self._section_title("备份", "选择要保护的用户目录、AI 会话和开发配置、如C盘Users目录下的.ssh .codex .claude .vscode .local"))
 
         item_card = CardWidget()
         item_layout = QVBoxLayout(item_card)
@@ -662,6 +681,22 @@ class FluentBackupApp(MSFluentWindow):
         layout.addWidget(self.protection_bar)
         return card
 
+    def _build_protection_guide_card(self) -> CardWidget:
+        card = CardWidget()
+        card.setObjectName("ProtectionGuideCard")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(4)
+        layout.addWidget(StrongBodyLabel("备份和迁移怎么选"))
+        self.protection_guide_text = CaptionLabel(
+            "备份：数据还是放在C盘,在其他盘定时或手工备份数据,重装或ghost恢复win系统后恢复备份到C盘"
+            "\n迁移：将某些必须存储在默认目录(如C盘的Users目录)的软件数据用win的Junction技术挂载到其他盘(不再写入C盘)"
+        )
+        self.protection_guide_text.setObjectName("ProtectionGuideText")
+        self.protection_guide_text.setWordWrap(True)
+        layout.addWidget(self.protection_guide_text)
+        return card
+
     def _build_metrics_panel(self) -> CardWidget:
         panel = CardWidget()
         panel.setObjectName("DashboardMetricsPanel")
@@ -784,7 +819,7 @@ class FluentBackupApp(MSFluentWindow):
 
     def _build_link_page(self) -> QWidget:
         page, layout = self._base_page()
-        layout.addWidget(self._section_title("迁移", f"先备份，再移动到 D 盘{LINK_STORE_DIR_NAME}，原位置保留 Junction 引用。"))
+        layout.addWidget(self._section_title("迁移", f"先备份，再移动到D盘{LINK_STORE_DIR_NAME}，原位置保留Junction引用。Junction技术暂只支持文件夹,不支持单文件"))
 
         card = CardWidget()
         card_layout = QVBoxLayout(card)
@@ -798,8 +833,8 @@ class FluentBackupApp(MSFluentWindow):
         title_row.addStretch()
         title_row.addWidget(CaptionLabel("排序"))
         self.link_sort_combo = ComboBox()
-        self.link_sort_combo.addItems(["已迁移", "从大到小", "从小到大", "最近更新"])
-        self.link_sort_combo.setCurrentText("已迁移")
+        self.link_sort_combo.addItems([LINK_SORT_MIGRATED_TEXT, "从大到小", "从小到大", "最近更新"])
+        self.link_sort_combo.setCurrentText(LINK_SORT_MIGRATED_TEXT)
         self.link_sort_combo.currentTextChanged.connect(lambda _: self.refresh_link_items())
         title_row.addWidget(self.link_sort_combo)
         link_bar.addLayout(title_row)
@@ -866,6 +901,23 @@ class FluentBackupApp(MSFluentWindow):
         cancel_group_layout.addLayout(cancel_row)
         toolbar_layout.addWidget(self.link_cancel_group)
 
+        self.link_refresh_group = QFrame()
+        self.link_refresh_group.setObjectName("ToolbarGroup")
+        self.link_refresh_group.setMinimumWidth(90)
+        refresh_group_layout = QVBoxLayout(self.link_refresh_group)
+        refresh_group_layout.setContentsMargins(6, 5, 6, 5)
+        refresh_group_layout.setSpacing(3)
+        refresh_group_layout.addWidget(CaptionLabel("状态"))
+        refresh_row = QHBoxLayout()
+        refresh_row.setSpacing(5)
+        self.refresh_link_button = PushButton("刷新")
+        set_compact_button(self.refresh_link_button)
+        self.refresh_link_button.clicked.connect(self.refresh_link_page)
+        refresh_row.addWidget(self.refresh_link_button)
+        refresh_row.addStretch()
+        refresh_group_layout.addLayout(refresh_row)
+        toolbar_layout.addWidget(self.link_refresh_group)
+
         link_bar.addWidget(self.link_toolbar)
         card_layout.addLayout(link_bar)
 
@@ -882,6 +934,8 @@ class FluentBackupApp(MSFluentWindow):
         self.link_scroll.setWidget(self.link_container)
         card_layout.addWidget(self.link_scroll)
         self.link_hint = CaptionLabel("")
+        self.link_hint.setObjectName("WarningHint")
+        self.link_hint.setStyleSheet("color: #c42b1c;")
         card_layout.addWidget(self.link_hint)
         self.refresh_link_items()
         layout.addWidget(card, 1)
@@ -896,7 +950,7 @@ class FluentBackupApp(MSFluentWindow):
         layout.setContentsMargins(8, 3, 8, 3)
         layout.setSpacing(0)
         self.link_terms_text = CaptionLabel(
-            "术语说明 · Junction：原位置引用 D 盘迁移后的真实目录；恢复前备份用于回退；取消迁移会把真实目录移回原位置。"
+            "Junction是什么：原位置引用 D 盘迁移后的真实目录；恢复前备份用于回退；取消迁移会把真实目录移回原位置。"
         )
         self.link_terms_text.setObjectName("Muted")
         self.link_terms_text.setWordWrap(True)
@@ -1015,6 +1069,7 @@ class FluentBackupApp(MSFluentWindow):
         previous_scroll_value = scrollbar.value() if scrollbar else 0
         for card in self.item_cards:
             card.setParent(None)
+            card.deleteLater()
         self.item_cards = []
 
         exists_count = self._refresh_item_status_widgets(rebuild_cards=True)
@@ -1151,8 +1206,7 @@ class FluentBackupApp(MSFluentWindow):
     def query_schedule_task(self, task_name: str):
         return subprocess.run(
             ["schtasks", "/Query", "/TN", task_name, "/FO", "LIST"],
-            capture_output=True,
-            text=True,
+            **self.service._hidden_subprocess_kwargs(),
         )
 
     def query_legacy_schedule_tasks(self):
@@ -1207,7 +1261,9 @@ class FluentBackupApp(MSFluentWindow):
 
         self._run_worker(job, refresh=True, success_text="恢复完成")
 
-    def migrate_selected_link(self) -> None:
+    def migrate_selected_link(self, confirm: bool = False) -> None:
+        if not self._can_start_link_action():
+            return
         selected_items = self._selected_link_items()
         if not selected_items:
             self._warn("请选择要迁移的目录。")
@@ -1217,13 +1273,14 @@ class FluentBackupApp(MSFluentWindow):
             if not status.can_migrate:
                 self._warn(f"{item.name} 当前状态为 {status.label}，不能迁移。{status.problem}")
                 return
-        ok = QMessageBox.question(
-            self,
-            APP_TITLE,
-            f"这是高级操作，会移动原目录并创建 Junction。\n\n目录：{', '.join(item.name for item in selected_items)}\n\n是否继续？",
-        )
-        if ok != QMessageBox.StandardButton.Yes:
-            return
+        if confirm:
+            ok = QMessageBox.question(
+                self,
+                APP_TITLE,
+                f"这是高级操作，会移动原目录并创建 Junction。\n\n目录：{', '.join(item.name for item in selected_items)}\n\n是否继续？",
+            )
+            if ok != QMessageBox.StandardButton.Yes:
+                return
 
         def job(log):
             for item in selected_items:
@@ -1232,9 +1289,19 @@ class FluentBackupApp(MSFluentWindow):
                 log(f"迁移完成：{result.link_path} -> {result.store_path}")
                 log(f"迁移前备份：{result.pre_migration_backup_dir}")
 
-        self._run_worker(job, refresh=True, success_text="Junction 迁移完成")
+        self._start_link_action("正在迁移中，请稍候...")
+        self._run_worker(
+            job,
+            refresh=False,
+            success_text="",
+            after_success=self._finish_pending_link_action_refresh,
+            after_failed=self._finish_failed_link_action_refresh,
+            on_failed=self._show_link_action_error_dialog,
+        )
 
-    def cancel_selected_link_migration(self, checked: bool = False, confirm: bool = True) -> None:
+    def cancel_selected_link_migration(self, checked: bool = False, confirm: bool = False) -> None:
+        if not self._can_start_link_action():
+            return
         selected_items = self._selected_link_items()
         if not selected_items:
             self._warn("请选择要取消迁移的目录。")
@@ -1259,10 +1326,15 @@ class FluentBackupApp(MSFluentWindow):
                 log(f"取消迁移完成：{result.link_path}")
                 log(f"取消迁移前备份：{result.pre_cancel_backup_dir}")
 
-        if confirm:
-            self._run_worker(job, refresh=True, success_text="取消迁移完成")
-        else:
-            job(lambda message: None)
+        self._start_link_action("正在取消迁移中，请稍候...")
+        self._run_worker(
+            job,
+            refresh=False,
+            success_text="",
+            after_success=self._finish_pending_link_action_refresh,
+            after_failed=self._finish_failed_link_action_refresh,
+            on_failed=self._show_link_action_error_dialog,
+        )
 
     def open_backup_dir(self) -> None:
         self.backup_root.mkdir(parents=True, exist_ok=True)
@@ -1369,6 +1441,8 @@ class FluentBackupApp(MSFluentWindow):
     def refresh_link_hint(self) -> None:
         if not hasattr(self, "link_hint"):
             return
+        if self._link_action_busy:
+            return
         selected_items = self._selected_link_items()
         self._update_link_action_buttons(selected_items)
         if not selected_items:
@@ -1399,9 +1473,17 @@ class FluentBackupApp(MSFluentWindow):
     def _update_link_action_buttons(self, selected_items: list[BackupItem]) -> None:
         if not hasattr(self, "migrate_button") or not hasattr(self, "cancel_migration_button"):
             return
+        if self._link_action_busy:
+            self.migrate_button.setEnabled(False)
+            self.cancel_migration_button.setEnabled(False)
+            if hasattr(self, "refresh_link_button"):
+                self.refresh_link_button.setEnabled(False)
+            return
         statuses = [self.service.get_link_migration_status(item) for item in selected_items]
         self.migrate_button.setEnabled(bool(statuses) and all(status.can_migrate for status in statuses))
         self.cancel_migration_button.setEnabled(bool(statuses) and all(status.can_cancel for status in statuses))
+        if hasattr(self, "refresh_link_button"):
+            self.refresh_link_button.setEnabled(True)
 
     def _link_status_extra_details(self, status: LinkMigrationStatus) -> list[str]:
         if status.state == "migrated":
@@ -1411,10 +1493,26 @@ class FluentBackupApp(MSFluentWindow):
         return []
 
     def _link_status_tooltip(self, status: LinkMigrationStatus) -> str:
-        lines = [status.label, status.detail]
+        lines = [status.label]
+        if status.state == "broken":
+            lines.append(f"异常类型：{self._link_exception_type_summary(status)}")
+            lines.append("处理建议：先确认 C 盘和 D 盘哪边数据完整，再手动整理。")
+        lines.append(status.detail)
         if status.problem:
             lines.append(status.problem)
         return "\n".join(lines)
+
+    def _link_exception_type_summary(self, status: LinkMigrationStatus) -> str:
+        problem = status.problem
+        if "C 盘原位置是 Junction" in problem and "真实目录不存在" in problem:
+            return "C盘是Junction，但D盘真实目录不存在"
+        if "迁移后的真实目录已存在" in problem and "C 盘原位置不是 Junction" in problem:
+            return "D盘已有真实目录，C盘不是Junction"
+        if "迁移后的真实目录已存在" in problem and "C 盘原位置不存在" in problem:
+            return "D盘已有真实目录，C盘原位置不存在"
+        if "C 盘原目录不存在" in problem:
+            return "C盘原目录不存在，D盘也没有迁移目录"
+        return "需要手动检查迁移状态"
 
     def add_custom_folder(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "选择要备份的文件夹", str(self.home))
@@ -1454,9 +1552,11 @@ class FluentBackupApp(MSFluentWindow):
     def refresh_link_items(self) -> None:
         if not hasattr(self, "link_layout"):
             return
+        QToolTip.hideText()
         selected_names = set(self.link_selected_names)
         for card in self.link_cards:
             card.setParent(None)
+            card.deleteLater()
         self.link_cards = []
         scanned_by_name = {entry.item.name: entry for entry in self.scanned_items}
         self.link_selected_names = {name for name in self.link_selected_names if any(item.name == name for item in self._sorted_linkable_items())}
@@ -1467,7 +1567,16 @@ class FluentBackupApp(MSFluentWindow):
             status = self.service.get_link_migration_status(item)
             extra_details = self._link_status_extra_details(status)
             tooltip = self._link_status_tooltip(status)
-            card = BackupItemCard(scanned, item.name in selected_names, badge=status.label, extra_details=extra_details, tooltip=tooltip)
+            card = BackupItemCard(
+                scanned,
+                item.name in selected_names,
+                badge=status.label,
+                extra_details=extra_details,
+                tooltip=tooltip,
+                open_actions=self._link_open_actions(status),
+            )
+            if self._link_action_busy:
+                card.checkbox.setEnabled(False)
             self._apply_link_card_status_style(card, status)
             card.toggled.connect(self._set_link_item_selected)
             card.open_directory_requested.connect(self.open_current_directory)
@@ -1475,12 +1584,64 @@ class FluentBackupApp(MSFluentWindow):
             self.link_cards.append(card)
         self.refresh_link_hint()
 
+    def refresh_link_page(self) -> None:
+        if self._link_action_busy:
+            return
+        self.refresh_link_items()
+
+    def _start_link_action(self, message: str) -> None:
+        self._link_action_busy = True
+        self.link_hint.setText(message)
+        self._update_link_action_buttons([])
+        for card in getattr(self, "link_cards", []):
+            card.checkbox.setEnabled(False)
+
+    def _can_start_link_action(self) -> bool:
+        if self._link_action_busy:
+            return False
+        if self.worker and self.worker.isRunning():
+            self._info("当前已有任务在运行。")
+            return False
+        return True
+
+    def _finish_pending_link_action_refresh(self) -> None:
+        self._link_action_busy = False
+        self.link_selected_names.clear()
+        if hasattr(self, "link_sort_combo") and self.link_sort_combo.currentText() != LINK_SORT_MIGRATED_TEXT:
+            self.link_sort_combo.setCurrentText(LINK_SORT_MIGRATED_TEXT)
+        else:
+            self.refresh_link_items()
+        self._scroll_link_list_to_top()
+
+    def _finish_failed_link_action_refresh(self) -> None:
+        self._link_action_busy = False
+        self.refresh_link_items()
+
+    def _scroll_link_list_to_top(self) -> None:
+        if not hasattr(self, "link_scroll"):
+            return
+        QTimer.singleShot(0, lambda: self.link_scroll.verticalScrollBar().setValue(0))
+
     def _apply_link_card_status_style(self, card: BackupItemCard, status: LinkMigrationStatus) -> None:
         migrated = status.state == "migrated"
+        broken = status.state == "broken"
         card.setProperty("migrated", migrated)
-        card.setObjectName("MigratedLinkCard" if migrated else "")
+        card.setProperty("broken", broken)
+        if migrated:
+            card.setObjectName("MigratedLinkCard")
+        elif broken:
+            card.setObjectName("BrokenLinkCard")
+        else:
+            card.setObjectName("")
         card.style().unpolish(card)
         card.style().polish(card)
+
+    def _link_open_actions(self, status: LinkMigrationStatus) -> list[tuple[str, Path]]:
+        if status.state == "migrated":
+            return [("打开原位置", status.link_path), ("打开真实目录", status.store_path)]
+        if status.state == "broken" and status.store_path.exists():
+            return [("打开原位置", status.link_path), ("打开真实目录", status.store_path)]
+        return [("打开当前目录", status.link_path)]
 
     def set_all_link_items(self, checked: bool) -> None:
         if not hasattr(self, "link_cards"):
@@ -1601,8 +1762,8 @@ class FluentBackupApp(MSFluentWindow):
 
     def _sorted_linkable_items(self) -> list[BackupItem]:
         if self.scanned_items:
-            mode = self.link_sort_combo.currentText() if hasattr(self, "link_sort_combo") else "已迁移"
-            if mode == "已迁移":
+            mode = self.link_sort_combo.currentText() if hasattr(self, "link_sort_combo") else LINK_SORT_MIGRATED_TEXT
+            if mode == LINK_SORT_MIGRATED_TEXT:
                 status_rank = {"migrated": 0, "broken": 1, "normal": 2}
                 scanned_entries = [
                     entry for entry in self.scanned_items if entry.exists and not entry.item.name.startswith("自定义/")
@@ -1644,16 +1805,21 @@ class FluentBackupApp(MSFluentWindow):
             )
         return payload
 
-    def _run_worker(self, func, refresh: bool, success_text: str) -> None:
+    def _run_worker(self, func, refresh: bool, success_text: str, after_success=None, after_failed=None, on_failed=None) -> None:
         if self.worker and self.worker.isRunning():
             self._info("当前已有任务在运行。")
             return
         self.worker = Worker(func)
         self.worker.log.connect(self.append_log)
-        self.worker.failed.connect(self._show_error)
-        self.worker.finished_ok.connect(lambda: self._success(success_text))
+        self.worker.failed.connect(on_failed or self._show_error)
+        if after_failed is not None:
+            self.worker.failed.connect(lambda _text: after_failed())
+        if success_text:
+            self.worker.finished_ok.connect(lambda: self._success(success_text))
         if refresh:
             self.worker.finished_ok.connect(self.refresh_all)
+        if after_success is not None:
+            self.worker.finished_ok.connect(after_success)
         self.worker.start()
 
     def append_log(self, message: str) -> None:
@@ -1670,7 +1836,11 @@ class FluentBackupApp(MSFluentWindow):
 
     def _show_error(self, text: str) -> None:
         self.append_log(text)
-        self._show_info_bar(InfoBar.error, "任务失败", text.splitlines()[0], 5000)
+        self._show_info_bar(InfoBar.error, "任务失败", describe_migration_error(text), 5000)
+
+    def _show_link_action_error_dialog(self, text: str) -> None:
+        self.append_log(text)
+        QMessageBox.critical(self, APP_TITLE, describe_migration_error(text))
 
     def _show_info_bar(self, factory, title: str, content: str, duration: int) -> None:
         self._close_active_info_bar()

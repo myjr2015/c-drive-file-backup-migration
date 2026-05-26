@@ -1,12 +1,12 @@
 [project]
-name = "ai-session-config-backup-migration"
-version = "0.0.2"
-description = "Windows desktop tool for backing up and migrating AI session and dot-prefixed folders."
+name = "ai-session-backup"
+version = "1.0.0"
+description = "Windows desktop tool for backing up AI session and dot-prefixed folders."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [
-  { name = "AI会话配置备份迁移维护者" }
+  { name = "Ai会话备份维护者" }
 ]
 dependencies = [
   "PySide6>=6.10,<7",
@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/myjr2015/ai-session-config-backup-migration"
-Issues = "https://github.com/myjr2015/ai-session-config-backup-migration/issues"
+Homepage = "https://github.com/myjr2015/ai-session-backup"
+Issues = "https://github.com/myjr2015/ai-session-backup/issues"
 
 [tool.ruff]
 line-length = 140

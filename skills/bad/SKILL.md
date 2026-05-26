@@ -59,6 +59,11 @@ description: 本项目失败路线、风险和不要重复尝试的方案。
 - 不要看到任务栏里很多 `pythonw` 就直接判断为进程泄漏或线程泄漏；先用 `Get-CimInstance Win32_Process` 查真实进程数，再枚举当前进程顶层窗口。当前已确认常见残留是 qfluentwidgets/Qt 通知条留下的标题为 `pythonw` 的小顶层窗口。
 - 不要让 Fluent 的 InfoBar 提示无限叠加；提示类反馈必须走单活动通知逻辑，新提示出现前关闭旧提示，避免任务栏继续堆 `pythonw` 小窗口。
 - 不要在正式 GUI 启动 bat 里直接同步调用 `pythonw.exe app_fluent.py`；双击 bat 会先打开 `cmd.exe`，同步调用容易让黑色窗口跟随 GUI 常驻。正式入口要用 `start` 分离 GUI 后退出 bat。
+- 不要为了去掉迁移/取消迁移确认弹窗而绕过 `_run_worker(refresh=True)`；否则操作成功后迁移列表不会刷新，仍会显示“已迁移，可取消迁移”等旧状态。
+- 不要让迁移页“刷新”按钮同时调用 `refresh_link_items()` 和全局 `refresh_items()`；全局扫描完成会再次重建迁移卡片，叠加 hover tooltip 时容易出现一批 Qt 小弹窗。刷新迁移状态时应隐藏当前 `QToolTip`，只重建迁移卡片，并对旧卡片调用 `deleteLater()`。
+- 不要给迁移/取消迁移这种高频操作传 `success_text` 创建 InfoBar 成功提示；qfluentwidgets 的 InfoBar 会作为短暂顶层提示窗口闪现，用户会感觉像弹窗。迁移类操作完成后用列表刷新、底部提示和日志反馈即可。
+- 不要在迁移/取消迁移前先设置 busy 再调用 `_run_worker()`；如果已有其他 worker 在运行，`_run_worker()` 会拒绝启动，界面可能卡在“正在迁移中”。必须先用 `_can_start_link_action()` 判断并发状态，再进入忙碌态。
+- 不要把 `PermissionError` / `WinError 5` / `WinError 32` 原样弹给普通用户；迁移失败必须翻译成“文件正在使用中”“程序正在运行”“权限不足”等可处理原因，并尽量显示相关文件名或进程名。
 - 不要假设 GitHub Actions Windows Runner 的标准输出一定是 UTF-8；把 UTF-8 字节再 `decode("ascii")` 会在中文输出时触发 `UnicodeDecodeError`，应按当前 stdout 编码做安全转义。
 - 不要把项目根目录的 `api.txt` 当作 GitHub 发布凭据来源；该文件应被忽略且可能为空，本机发布默认显式指定全局登录脚本的 `-ApiPath 'D:\code\DaiMa\#全局登录脚本\api.txt'`。
 - 不要在自动化发布时直接依赖普通 `git push`；Git Credential Manager 可能弹交互窗口或卡住，优先设置非交互环境变量并用 `credential.helper="!gh auth git-credential"`。

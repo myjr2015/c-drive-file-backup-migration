@@ -32,8 +32,8 @@
 
 ## GitHub 开源发布约定
 
-- 公开仓库：`https://github.com/myjr2015/ai-session-config-backup-migration`
-- 远端默认使用：`origin https://github.com/myjr2015/ai-session-config-backup-migration.git`
+- 公开仓库：`https://github.com/myjr2015/ai-session-backup`
+- 远端默认使用：`origin https://github.com/myjr2015/ai-session-backup.git`
 - 当前开源标准结构包含：`LICENSE`、`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`README.md`、`requirements.txt`、`pyproject.toml`、`api.example.txt`、`.github/ISSUE_TEMPLATE/`、`.github/pull_request_template.md`、`.github/workflows/tests.yml`。
 - 发布到 GitHub 前必须检查工作区和敏感文件：
   - 先运行 `git status --short --branch` 和 `git diff`，只提交本次相关文件。
@@ -49,30 +49,30 @@
   - `python -m unittest discover -s scripts/test -p 'test_*.py' -v`
   - 完整测试约 120 秒，工具超时要给到 10 分钟左右；不要把 120 秒命令超时误判为测试失败。
 - CI 查看流程：
-  - `gh run list --repo myjr2015/ai-session-config-backup-migration --workflow tests --limit 5`
-  - `gh run watch <run_id> --repo myjr2015/ai-session-config-backup-migration --exit-status`
-  - 失败时用 `gh run view <run_id> --repo myjr2015/ai-session-config-backup-migration --log-failed` 看日志后再改。
+  - `gh run list --repo myjr2015/ai-session-backup --workflow tests --limit 5`
+  - `gh run watch <run_id> --repo myjr2015/ai-session-backup --exit-status`
+  - 失败时用 `gh run view <run_id> --repo myjr2015/ai-session-backup --log-failed` 看日志后再改。
 - Windows GitHub Actions 的 stdout 编码可能不是 UTF-8；CLI 中文输出兜底必须按当前 `sys.stdout.encoding` 做安全转义，不要写死 UTF-8 再用 ASCII 解码。
-- 公开发布名：中文软件名 `AI会话配置备份迁移`，英文仓库名 `ai-session-config-backup-migration`，早期公开版本从 `V0.0.2` 开始。
+- 公开发布名：中文软件名 `Ai会话备份`，英文仓库名 `ai-session-backup`，首个公开发布版本为 `V1.0.0`。
 - Windows 便携版打包：
   - 入口脚本：`scripts/build_windows_release.py`
   - PowerShell 包装入口：`scripts/build_windows_release.ps1`
   - PyInstaller spec：`windows_portable.spec`
-  - 输出：`release/AI会话配置备份迁移-V0.0.2-windows-portable.zip`
+  - 输出：`release/Ai会话备份-V1.0.0-windows-portable.zip`
   - 打包时排除 PyQt5/PyQt6/PySide2、torch、pandas、scipy、matplotlib 等无关库，避免当前全局 Python 环境把无关依赖打进发布包。
 - 中文路径和中文文件名发布包优先用 Python 脚本处理；不要用 Windows PowerShell 5.1 直接负责中文路径压缩和中文 spec 路径，容易因编码解析错导致构建后找不到输出。
 
 ## 定时任务
 
-- 任务名：`AI会话配置备份迁移-定时备份`
-- 旧任务名 `AI配置备份助手-定时备份` 只作为兼容清理对象保留，不再作为公开展示名称。
+- 任务名：`Ai会话备份-定时备份`
+- 旧任务名 `AI会话配置备份迁移-定时备份` 和 `AI配置备份助手-定时备份` 只作为兼容清理对象保留，不再作为公开展示名称。
 - 入口：`定时备份入口.bat`
 - 配置：`data/schedule.json`
 - 默认时间：每天 `22:30`
 
 ## GUI 约定
 
-- 默认启动脚本：`启动AI会话配置备份迁移.bat`，启动 `app_fluent.py`。
+- 默认启动脚本：`启动Ai会话备份.bat`，启动 `app_fluent.py`。
 - 正式软件图标：`assets/app.ico`；窗口标题栏和 PyInstaller exe 都必须使用这个图标。
 - 正式启动脚本必须用 `start "" /D ... pythonw.exe ...` 拉起 GUI 后立即 `exit /b 0`，避免用户双击 bat 后黑色 `cmd` 窗口一直常驻。
 - `启动Fluent界面.bat` 旧调试入口已删除；不要再恢复，避免和默认启动脚本重复并带出控制台窗口。

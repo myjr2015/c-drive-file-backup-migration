@@ -7,10 +7,15 @@ import sys
 import zipfile
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-APP_NAME = "AI会话配置备份迁移"
-APP_VERSION = "V0.0.2"
-ZIP_NAME = f"{APP_NAME}-{APP_VERSION}-windows-portable.zip"
+from project_config import APP_TITLE, APP_VERSION
+
+APP_NAME = APP_TITLE
+RELEASE_VERSION = f"V{APP_VERSION}"
+ZIP_NAME = f"{APP_NAME}-{RELEASE_VERSION}-windows-portable.zip"
 
 
 def run(command: list[str]) -> None:
@@ -33,7 +38,7 @@ def zip_directory(source_dir: Path, zip_path: Path) -> None:
 
 def write_release_readme(dist_dir: Path) -> None:
     text = f"""\
-{APP_NAME} {APP_VERSION}
+{APP_NAME} {RELEASE_VERSION}
 
 运行方式：
 1. 解压整个文件夹。
@@ -41,7 +46,7 @@ def write_release_readme(dist_dir: Path) -> None:
 3. 默认备份目录是 D:\\code\\backup，可在软件总览页修改。
 
 注意：
-- 这是早期测试版。
+- 这是第一个正式公开发布版本。
 - .codex、.happy、.claude、.ssh 等目录可能包含 token、SSH 私钥或 AI 会话数据。
 - 当前版本是本地明文备份，不要把备份快照上传到公开位置。
 """

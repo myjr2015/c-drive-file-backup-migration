@@ -3,6 +3,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -40,6 +41,40 @@ LEGACY_INTERNAL_BACKUP_DIR_MAPPINGS = (
     (LEGACY_ENVIRONMENT_PATH_DIR_NAME, ENVIRONMENT_PATH_DIR_NAME),
     (LEGACY_LINK_STORE_DIR_NAME, LINK_STORE_DIR_NAME),
 )
+
+
+def describe_migration_error(exc_or_text) -> str:
+    text = str(exc_or_text)
+    path = _extract_error_path(text)
+    path_hint = f"：{Path(path).name}" if path else ""
+    winerror = getattr(exc_or_text, "winerror", None)
+    if winerror is None:
+        winerror = _extract_winerror(text)
+    errno_value = getattr(exc_or_text, "errno", None)
+
+    if winerror == 32 or errno_value == 32 or "WinError 32" in text:
+        return f"文件正在使用中{path_hint}。请先关闭正在使用这个目录的软件，再重试迁移。"
+    if "程序正在运行" in text:
+        process_match = re.search(r"程序正在运行：([^。\\n]+)", text)
+        process_text = f"：{process_match.group(1)}" if process_match else ""
+        return f"程序正在运行{process_text}。请先关闭相关软件和后台进程，再重试迁移。"
+    if winerror == 5 or errno_value == 13 or "WinError 5" in text or "拒绝访问" in text or "Access is denied" in text:
+        return f"权限不足或程序正在运行{path_hint}。请关闭相关软件，必要时以管理员身份重新打开本软件后重试。"
+    if "迁移后的真实目录已存在" in text and "C 盘原位置不是 Junction" in text:
+        return "D 盘迁移后的真实目录已经存在，但 C 盘原位置还不是链接。请先确认 C 盘和 D 盘哪边数据完整，再处理残留目录。"
+    return text.splitlines()[0] if text.splitlines() else text
+
+
+def _extract_winerror(text: str) -> int | None:
+    match = re.search(r"WinError\s+(\d+)", text)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _extract_error_path(text: str) -> str:
+    matches = re.findall(r"'([^']+)'", text)
+    return matches[-1] if matches else ""
 
 
 def empty_user_settings(settings_exists: bool = False) -> dict:
@@ -355,6 +390,15 @@ class BackupService:
         source = Path(item.source)
         if not source.exists():
             raise FileNotFoundError(f"迁移源不存在：{source}")
+
+        running_processes = self._running_processes_under_path(source)
+        if running_processes:
+            process_text = "；".join(f"{name}(PID {pid})" for name, pid, _path in running_processes[:5])
+            raise PermissionError(
+                5,
+                f"目录内有程序正在运行：{process_text}。请先关闭相关软件和后台进程，再重试迁移。",
+                str(source),
+            )
 
         link_store_root = Path(link_store_root)
         store_path = link_store_root / item.name
@@ -807,6 +851,62 @@ class BackupService:
 
     def _move_path(self, source: Path, destination: Path) -> None:
         shutil.move(str(source), str(destination))
+
+    def _running_processes_under_path(self, path: Path) -> list[tuple[str, int, Path]]:
+        if os.name != "nt":
+            return []
+        root = self._normalize_path(Path(path))
+        root_text = str(root).lower()
+        try:
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-Command",
+                    "Get-CimInstance Win32_Process | Select-Object ProcessId,Name,ExecutablePath,CommandLine | ConvertTo-Json -Compress",
+                ],
+                **self._hidden_subprocess_kwargs(),
+            )
+        except Exception:
+            return []
+        if result.returncode != 0 or not result.stdout.strip():
+            return []
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return []
+        if isinstance(payload, dict):
+            payload = [payload]
+        if not isinstance(payload, list):
+            return []
+        matches: list[tuple[str, int, Path]] = []
+        seen: set[int] = set()
+        for process in payload:
+            if not isinstance(process, dict):
+                continue
+            pid = int(process.get("ProcessId") or 0)
+            if not pid or pid in seen:
+                continue
+            name = str(process.get("Name") or "")
+            candidates = [str(process.get("ExecutablePath") or ""), str(process.get("CommandLine") or "")]
+            matched_path = self._process_path_under_root(candidates, root_text)
+            if matched_path is None:
+                continue
+            seen.add(pid)
+            matches.append((name, pid, matched_path))
+        return matches
+
+    def _process_path_under_root(self, candidates: Iterable[str], root_text: str) -> Path | None:
+        for candidate in candidates:
+            if not candidate:
+                continue
+            normalized = candidate.replace("/", "\\").lower()
+            index = normalized.find(root_text)
+            if index < 0:
+                continue
+            tail = candidate[index:].strip().strip('"')
+            return Path(tail.split('"')[0])
+        return None
 
     def _path_size(self, path: Path) -> int:
         if path.is_file():

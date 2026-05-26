@@ -6,12 +6,12 @@ from pathlib import Path
 from backup_core import BackupItem
 
 
-APP_TITLE = "AI会话配置备份迁移"
-APP_VERSION = "0.0.2"
+APP_TITLE = "Ai会话备份"
+APP_VERSION = "1.0.0"
 APP_ICON_PATH = Path("assets/app.ico")
-GITHUB_REPOSITORY = "myjr2015/ai-session-config-backup-migration"
-SCHEDULE_TASK_NAME = "AI会话配置备份迁移-定时备份"
-LEGACY_SCHEDULE_TASK_NAMES = ["AI配置备份助手-定时备份"]
+GITHUB_REPOSITORY = "myjr2015/ai-session-backup"
+SCHEDULE_TASK_NAME = "Ai会话备份-定时备份"
+LEGACY_SCHEDULE_TASK_NAMES = ["AI会话配置备份迁移-定时备份", "AI配置备份助手-定时备份"]
 DEFAULT_BACKUP_ROOT = Path(r"D:\code\backup")
 FALLBACK_DOT_FOLDER_NAMES = [".claude", ".codex", ".happy", ".ssh"]
 LEGACY_FIXED_DEFAULT_ITEM_NAMES = {

@@ -509,6 +509,41 @@ class BackupServiceTests(unittest.TestCase):
             self.assertTrue((source / "sessions.json").exists())
             self.assertFalse((root / "link-store" / ".happy").exists())
 
+    def test_describe_migration_error_classifies_file_in_use_and_access_denied(self):
+        from backup_core import describe_migration_error
+
+        file_in_use = PermissionError(32, "另一个程序正在使用此文件", r"C:\Users\me\.codex\logs.sqlite")
+        access_denied = PermissionError(5, "拒绝访问", r"C:\Users\me\.local\bin\claude.exe")
+
+        self.assertIn("文件正在使用中", describe_migration_error(file_in_use))
+        self.assertIn("logs.sqlite", describe_migration_error(file_in_use))
+        self.assertIn("权限不足或程序正在运行", describe_migration_error(access_denied))
+        self.assertIn("claude.exe", describe_migration_error(access_denied))
+        self.assertIn("程序正在运行", describe_migration_error("PermissionError: [WinError 5] 目录内有程序正在运行：claude.exe(PID 1234)。请先关闭相关软件"))
+
+    def test_prepare_link_migration_reports_running_process_inside_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "home" / ".local"
+            source.mkdir(parents=True)
+            running_exe = source / "bin" / "claude.exe"
+            running_exe.parent.mkdir()
+            running_exe.write_text("exe", encoding="utf-8")
+
+            class ProcessAwareBackupService(BackupService):
+                def _running_processes_under_path(self, path):
+                    return [("claude.exe", 1234, running_exe)]
+
+            service = ProcessAwareBackupService(root / "backups")
+
+            with self.assertRaises(PermissionError) as context:
+                service.prepare_link_migration(BackupItem(".local", source), root / "link-store")
+
+            message = str(context.exception)
+            self.assertIn("程序正在运行", message)
+            self.assertIn("claude.exe", message)
+            self.assertIn("1234", message)
+
     def test_restore_skips_missing_snapshot_items_without_removing_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

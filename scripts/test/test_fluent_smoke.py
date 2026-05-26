@@ -32,7 +32,7 @@ class FluentSmokeTests(unittest.TestCase):
     def test_fluent_window_uses_product_title_and_icon(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
-        from app_fluent import FluentBackupApp
+        from app_fluent import STYLE, FluentBackupApp
         from project_config import APP_TITLE
 
         app = QApplication.instance() or QApplication([])
@@ -151,7 +151,7 @@ class FluentSmokeTests(unittest.TestCase):
     def test_fluent_migrates_legacy_fixed_default_selection_to_existing_dot_folders(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
-        from app_fluent import FluentBackupApp
+        from app_fluent import STYLE, FluentBackupApp
         from backup_core import write_user_settings
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -364,6 +364,26 @@ class FluentSmokeTests(unittest.TestCase):
         window.close()
         app.quit()
 
+    def test_dashboard_explains_when_to_use_backup_or_migration(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+
+        self.assertEqual(window.protection_guide_card.objectName(), "ProtectionGuideCard")
+        guide_text = window.protection_guide_text.text()
+        self.assertIn("备份：", guide_text)
+        self.assertIn("数据还是放在C盘", guide_text)
+        self.assertIn("定时或手工备份", guide_text)
+        self.assertIn("迁移：", guide_text)
+        self.assertIn("Junction技术", guide_text)
+        self.assertIn("不再写入C盘", guide_text)
+
+        window.close()
+        app.quit()
+
     def test_fluent_compact_density_limits_card_and_panel_sizes(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
@@ -505,6 +525,42 @@ class FluentSmokeTests(unittest.TestCase):
         card.close()
         app.quit()
 
+    def test_link_card_can_open_source_and_real_migrated_directories(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import STYLE, FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".vscode", Path("C:/Users/example/.vscode"))
+        store_path = Path("D:/code/backup/迁移后的真实目录/.vscode")
+        status = LinkMigrationStatus(
+            state="migrated",
+            label="已迁移",
+            detail=f"C 盘引用：{item.source}；D 盘真实目录：{store_path}",
+            link_path=item.source,
+            store_path=store_path,
+            can_migrate=False,
+            can_cancel=True,
+        )
+
+        with patch.object(window.service, "get_link_migration_status", return_value=status):
+            window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 24, 1, 0))])
+
+        card = window.link_cards[0]
+        self.assertEqual([action.text() for action in card.context_menu_actions()], ["打开原位置", "打开真实目录"])
+
+        opened = []
+        card.open_directory_requested.connect(lambda path: opened.append(path))
+        with patch.object(window, "open_current_directory"):
+            card.context_menu_actions()[0].trigger()
+            card.context_menu_actions()[1].trigger()
+
+        self.assertEqual(opened, [item.source, store_path])
+        window.close()
+        app.quit()
+
     def test_fluent_item_sort_modes_order_scanned_items(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
@@ -569,9 +625,10 @@ class FluentSmokeTests(unittest.TestCase):
 
         labels = [label.text() for label in window.link_page.findChildren(QLabel)]
         combined_text = "\n".join(labels)
-        self.assertIn("术语说明", combined_text)
+        self.assertIn("Junction是什么", combined_text)
         self.assertIn("Junction", combined_text)
         self.assertIn("迁移后的真实目录", combined_text)
+        self.assertIn("不支持单文件", combined_text)
         self.assertIn("取消迁移", combined_text)
         self.assertIn("原位置", combined_text)
         self.assertIn("迁移", combined_text)
@@ -646,6 +703,26 @@ class FluentSmokeTests(unittest.TestCase):
         window.close()
         app.quit()
 
+    def test_schedule_task_query_uses_hidden_subprocess_window(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+
+        with patch("app_fluent.subprocess.run") as run:
+            run.return_value.returncode = 1
+            window.query_schedule_task("demo-task")
+
+        _, kwargs = run.call_args
+        if os.name == "nt":
+            self.assertIn("startupinfo", kwargs)
+            self.assertIn("creationflags", kwargs)
+        self.assertTrue(kwargs["capture_output"])
+        window.close()
+        app.quit()
+
     def test_environment_page_can_backup_path_variables(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
@@ -713,7 +790,7 @@ class FluentSmokeTests(unittest.TestCase):
         ]
 
         window.apply_scanned_items(scanned)
-        self.assertEqual(window.link_sort_combo.currentText(), "已迁移")
+        self.assertEqual(window.link_sort_combo.currentText(), "已经迁移")
         self.assertEqual([card.item.name for card in window.link_cards], [".recent", ".small", ".large"])
         window.link_sort_combo.setCurrentText("最近更新")
         self.assertEqual([card.item.name for card in window.link_cards], [".recent", ".small", ".large"])
@@ -748,9 +825,64 @@ class FluentSmokeTests(unittest.TestCase):
         self.assertEqual(window.link_action_group.objectName(), "ToolbarGroup")
         self.assertEqual(window.link_cancel_group.objectName(), "ToolbarGroup")
         self.assertEqual(window.cancel_migration_button.text(), "取消迁移")
-        self.assertEqual(window.link_sort_combo.currentText(), "已迁移")
-        self.assertEqual([window.link_sort_combo.itemText(index) for index in range(window.link_sort_combo.count())], ["已迁移", "从大到小", "从小到大", "最近更新"])
-        self.assertGreaterEqual(len(window.link_page.findChildren(QFrame, "ToolbarGroup")), 3)
+        self.assertEqual(window.link_refresh_group.objectName(), "ToolbarGroup")
+        self.assertEqual(window.refresh_link_button.text(), "刷新")
+        self.assertIn("color: #c42b1c", window.link_hint.styleSheet())
+        self.assertEqual(window.link_sort_combo.currentText(), "已经迁移")
+        self.assertEqual([window.link_sort_combo.itemText(index) for index in range(window.link_sort_combo.count())], ["已经迁移", "从大到小", "从小到大", "最近更新"])
+        self.assertGreaterEqual(len(window.link_page.findChildren(QFrame, "ToolbarGroup")), 4)
+
+        window.close()
+        app.quit()
+
+    def test_link_refresh_button_recalculates_status_after_external_change(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".codex", Path("C:/Users/example/.codex"))
+        store_path = Path("D:/code/backup/迁移后的真实目录/.codex")
+        state = {"value": "broken"}
+
+        def status_for_item(_item):
+            if state["value"] == "broken":
+                return LinkMigrationStatus(
+                    state="broken",
+                    label="异常",
+                    detail="",
+                    link_path=item.source,
+                    store_path=store_path,
+                    can_migrate=False,
+                    can_cancel=False,
+                    problem="迁移后的真实目录已存在，但 C 盘原位置不是 Junction。",
+                )
+            return LinkMigrationStatus(
+                state="normal",
+                label="未迁移",
+                detail="",
+                link_path=item.source,
+                store_path=store_path,
+                can_migrate=True,
+                can_cancel=False,
+            )
+
+        with patch.object(window.service, "get_link_migration_status", side_effect=status_for_item), patch(
+            "app_fluent.QToolTip.hideText"
+        ) as hide_tooltip, patch.object(window, "refresh_items") as refresh_items:
+            window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 26, 12, 0))])
+            self.assertIn("异常", window.link_cards[0].title_line.text())
+            old_cards = list(window.link_cards)
+
+            state["value"] = "normal"
+            window.refresh_link_button.click()
+
+            self.assertIn("未迁移", window.link_cards[0].title_line.text())
+            self.assertNotIn(old_cards[0], window.link_cards)
+            hide_tooltip.assert_called()
+            refresh_items.assert_not_called()
 
         window.close()
         app.quit()
@@ -758,7 +890,7 @@ class FluentSmokeTests(unittest.TestCase):
     def test_link_sort_migrated_first_and_highlights_migrated_cards(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
-        from app_fluent import FluentBackupApp
+        from app_fluent import STYLE, FluentBackupApp
         from backup_core import BackupItem, LinkMigrationStatus, ScannedItem
 
         app = QApplication.instance() or QApplication([])
@@ -781,13 +913,20 @@ class FluentSmokeTests(unittest.TestCase):
         with patch.object(window.service, "get_link_migration_status", side_effect=lambda item: statuses[item.name]):
             window.apply_scanned_items(scanned)
 
-        self.assertEqual(window.link_sort_combo.currentText(), "已迁移")
+        self.assertEqual(window.link_sort_combo.currentText(), "已经迁移")
         self.assertEqual([card.item.name for card in window.link_cards], [".migrated", ".broken", ".normal"])
         self.assertTrue(window.link_cards[0].property("migrated"))
+        self.assertFalse(window.link_cards[0].property("broken"))
         self.assertEqual(window.link_cards[0].objectName(), "MigratedLinkCard")
+        self.assertIn("background: rgba(0, 120, 212, 0.24)", STYLE)
         self.assertIn("已迁移", window.link_cards[0].title_line.text())
         self.assertFalse(window.link_cards[1].property("migrated"))
+        self.assertTrue(window.link_cards[1].property("broken"))
+        self.assertEqual(window.link_cards[1].objectName(), "BrokenLinkCard")
+        self.assertIn("background: rgba(255, 185, 0, 0.20)", STYLE)
+        self.assertFalse(window.link_cards[1].property("migrated"))
         self.assertFalse(window.link_cards[2].property("migrated"))
+        self.assertFalse(window.link_cards[2].property("broken"))
         window.link_sort_combo.setCurrentText("从大到小")
         self.assertEqual([card.item.name for card in window.link_cards], [".normal", ".broken", ".migrated"])
 
@@ -872,7 +1011,9 @@ class FluentSmokeTests(unittest.TestCase):
 
         with patch.object(window.service, "get_link_migration_status", return_value=migrated), patch.object(
             window.service, "cancel_link_migration"
-        ) as cancel:
+        ) as cancel, patch.object(
+            window, "_run_worker", side_effect=lambda job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None: job(lambda message: None)
+        ) as run_worker:
             window.apply_scanned_items(scanned)
 
             self.assertEqual([card.item.name for card in window.link_cards], [".vscode"])
@@ -884,6 +1025,450 @@ class FluentSmokeTests(unittest.TestCase):
             window.cancel_selected_link_migration(confirm=False)
 
         cancel.assert_called_once_with(item)
+        run_worker.assert_called_once()
+        window.close()
+        app.quit()
+
+    def test_link_migrate_and_cancel_actions_do_not_show_confirmation_dialogs_by_default(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkCancelResult, LinkMigrationResult, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".codex", Path("C:/Users/example/.codex"))
+        store_path = Path("D:/code/backup/迁移后的真实目录/.codex")
+        normal = LinkMigrationStatus(
+            state="normal",
+            label="未迁移",
+            detail=f"C 盘原目录：{item.source}；迁移后真实目录：{store_path}",
+            link_path=item.source,
+            store_path=store_path,
+            can_migrate=True,
+            can_cancel=False,
+        )
+        migrated = LinkMigrationStatus(
+            state="migrated",
+            label="已迁移",
+            detail=f"C 盘引用：{item.source}；D 盘真实目录：{store_path}",
+            link_path=item.source,
+            store_path=store_path,
+            can_migrate=False,
+            can_cancel=True,
+        )
+
+        window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 24, 1, 0))])
+        window.link_cards[0].checkbox.setChecked(True)
+
+        worker_calls = []
+
+        def run_worker_without_dialog(job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None):
+            worker_calls.append({"refresh": refresh, "success_text": success_text, "after_success": after_success, "after_failed": after_failed})
+            job(lambda message: None)
+            if after_success is not None:
+                after_success()
+
+        with patch.object(window.service, "get_link_migration_status", return_value=normal), patch.object(
+            window.service, "prepare_link_migration", return_value=LinkMigrationResult(item.source, store_path, Path("D:/backup/pre"))
+        ) as prepare, patch.object(window.service, "create_junction") as junction, patch.object(
+            window, "_run_worker", side_effect=run_worker_without_dialog
+        ), patch("app_fluent.QMessageBox.question") as question:
+            window.migrate_selected_link()
+
+        question.assert_not_called()
+        prepare.assert_called_once_with(item, window.service.default_link_store_root())
+        junction.assert_called_once_with(item.source, store_path)
+        self.assertFalse(worker_calls[-1]["refresh"])
+        self.assertEqual(worker_calls[-1]["success_text"], "")
+        self.assertIsNotNone(worker_calls[-1]["after_success"])
+
+        with patch.object(window.service, "get_link_migration_status", return_value=migrated), patch.object(
+            window.service, "cancel_link_migration", return_value=LinkCancelResult(item.source, store_path, Path("D:/backup/cancel"))
+        ) as cancel, patch.object(
+            window, "_run_worker", side_effect=run_worker_without_dialog
+        ), patch("app_fluent.QMessageBox.question") as question:
+            window.link_cards[0].checkbox.setChecked(True)
+            window.cancel_selected_link_migration()
+
+        question.assert_not_called()
+        cancel.assert_called_once_with(item)
+        self.assertFalse(worker_calls[-1]["refresh"])
+        self.assertEqual(worker_calls[-1]["success_text"], "")
+        self.assertIsNotNone(worker_calls[-1]["after_success"])
+        window.close()
+        app.quit()
+
+    def test_link_actions_show_busy_state_and_disable_controls_while_running(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".codex", Path("C:/Users/example/.codex"))
+        status = LinkMigrationStatus(
+            state="normal",
+            label="未迁移",
+            detail="",
+            link_path=item.source,
+            store_path=Path("D:/store/.codex"),
+            can_migrate=True,
+            can_cancel=False,
+        )
+
+        worker_call = {}
+
+        def hold_worker(job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None):
+            worker_call.update({"job": job, "refresh": refresh, "success_text": success_text, "after_success": after_success, "after_failed": after_failed})
+
+        with patch.object(window.service, "get_link_migration_status", return_value=status), patch.object(
+            window, "_run_worker", side_effect=hold_worker
+        ):
+            window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 24, 1, 0))])
+            window.link_cards[0].checkbox.setChecked(True)
+
+            window.migrate_selected_link()
+
+            self.assertTrue(window._link_action_busy)
+            self.assertIn("正在迁移中", window.link_hint.text())
+            self.assertFalse(window.migrate_button.isEnabled())
+            self.assertFalse(window.cancel_migration_button.isEnabled())
+            self.assertFalse(window.refresh_link_button.isEnabled())
+            self.assertFalse(window.link_cards[0].checkbox.isEnabled())
+
+            worker_call["after_success"]()
+
+            self.assertFalse(window._link_action_busy)
+            self.assertTrue(window.refresh_link_button.isEnabled())
+
+        window.close()
+        app.quit()
+
+    def test_link_action_does_not_enter_busy_state_when_another_worker_is_running(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".codex", Path("C:/Users/example/.codex"))
+        status = LinkMigrationStatus(
+            state="normal",
+            label="未迁移",
+            detail="",
+            link_path=item.source,
+            store_path=Path("D:/store/.codex"),
+            can_migrate=True,
+            can_cancel=False,
+        )
+
+        class RunningWorker:
+            def isRunning(self):
+                return True
+
+            def wait(self):
+                return True
+
+        window.worker = RunningWorker()
+        with patch.object(window.service, "get_link_migration_status", return_value=status), patch.object(window, "_info") as info:
+            window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 24, 1, 0))])
+            window.link_cards[0].checkbox.setChecked(True)
+
+            window.migrate_selected_link()
+
+            self.assertFalse(window._link_action_busy)
+            self.assertNotIn("正在迁移中", window.link_hint.text())
+            self.assertTrue(window.migrate_button.isEnabled())
+            info.assert_called_once_with("当前已有任务在运行。")
+
+        window.close()
+        app.quit()
+
+    def test_link_action_busy_state_resets_when_worker_fails(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".codex", Path("C:/Users/example/.codex"))
+        status = LinkMigrationStatus(
+            state="normal",
+            label="未迁移",
+            detail="",
+            link_path=item.source,
+            store_path=Path("D:/store/.codex"),
+            can_migrate=True,
+            can_cancel=False,
+        )
+
+        with patch.object(window.service, "get_link_migration_status", return_value=status), patch.object(
+            window, "_run_worker", side_effect=lambda job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None: None
+        ):
+            window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 24, 1, 0))])
+            window.link_cards[0].checkbox.setChecked(True)
+            window.migrate_selected_link()
+            self.assertTrue(window._link_action_busy)
+
+            window._finish_failed_link_action_refresh()
+
+            self.assertFalse(window._link_action_busy)
+            self.assertTrue(window.refresh_link_button.isEnabled())
+
+        window.close()
+        app.quit()
+
+    def test_run_worker_skips_success_info_bar_when_success_text_is_empty(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtCore import QTimer
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+
+        with patch.object(window, "_success") as success:
+            window._run_worker(lambda log: None, refresh=False, success_text="")
+            QTimer.singleShot(0, app.quit)
+            app.exec()
+
+        success.assert_not_called()
+        window.close()
+        app.quit()
+
+    def test_show_error_displays_user_friendly_migration_error(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        captured = {}
+
+        def capture(_factory, title, content, duration):
+            captured.update({"title": title, "content": content, "duration": duration})
+
+        window._show_info_bar = capture
+        window._show_error("PermissionError: [WinError 32] 另一个程序正在使用此文件。: 'C:\\Users\\me\\.codex\\logs.sqlite'\nTraceback...")
+
+        self.assertEqual(captured["title"], "任务失败")
+        self.assertIn("文件正在使用中", captured["content"])
+        self.assertIn("logs.sqlite", captured["content"])
+
+        window.close()
+        app.quit()
+
+    def test_link_action_failure_uses_modal_message_box_until_confirmed(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import APP_TITLE, FluentBackupApp
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        error_text = "PermissionError: [WinError 32] 另一个程序正在使用此文件。: 'C:\\Users\\me\\.codex\\logs.sqlite'\nTraceback..."
+
+        with patch.object(window, "_show_info_bar") as info_bar, patch("app_fluent.QMessageBox.critical") as critical:
+            window._show_link_action_error_dialog(error_text)
+
+        info_bar.assert_not_called()
+        critical.assert_called_once()
+        args = critical.call_args.args
+        self.assertIs(args[0], window)
+        self.assertEqual(args[1], APP_TITLE)
+        self.assertIn("文件正在使用中", args[2])
+        self.assertIn("logs.sqlite", args[2])
+
+        window.close()
+        app.quit()
+
+    def test_link_action_success_clears_selection_sorts_migrated_first_and_scrolls_top(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationResult, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        migrated_item = BackupItem(".already", Path("C:/Users/example/.already"))
+        target_item = BackupItem(".target", Path("C:/Users/example/.target"))
+        normal_item = BackupItem(".normal", Path("C:/Users/example/.normal"))
+        target_store = Path("D:/code/backup/迁移后的真实目录/.target")
+        scanned = [
+            ScannedItem(normal_item, True, 10, datetime(2026, 5, 20, 1, 0)),
+            ScannedItem(target_item, True, 20, datetime(2026, 5, 22, 1, 0)),
+            ScannedItem(migrated_item, True, 30, datetime(2026, 5, 21, 1, 0)),
+        ]
+        states = {".already": "migrated", ".target": "normal", ".normal": "normal"}
+
+        def status_for_item(item):
+            state = states[item.name]
+            store = target_store if item.name == ".target" else Path(f"D:/code/backup/迁移后的真实目录/{item.name}")
+            return LinkMigrationStatus(
+                state=state,
+                label="已迁移" if state == "migrated" else "未迁移",
+                detail="",
+                link_path=item.source,
+                store_path=store,
+                can_migrate=state == "normal",
+                can_cancel=state == "migrated",
+            )
+
+        def prepare_item(item, _store_root):
+            states[item.name] = "migrated"
+            return LinkMigrationResult(item.source, target_store, Path("D:/backup/pre"))
+
+        def run_worker_and_finish(job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None):
+            job(lambda message: None)
+            if after_success is not None:
+                after_success()
+            elif refresh:
+                window.refresh_link_items()
+
+        with patch.object(window.service, "get_link_migration_status", side_effect=status_for_item), patch.object(
+            window.service, "prepare_link_migration", side_effect=prepare_item
+        ), patch.object(window.service, "create_junction"), patch.object(
+            window, "_run_worker", side_effect=run_worker_and_finish
+        ), patch.object(window, "_scroll_link_list_to_top") as scroll_top:
+            window.apply_scanned_items(scanned)
+            window.link_sort_combo.setCurrentText("从小到大")
+            window.link_cards[1].checkbox.setChecked(True)
+            self.assertEqual(window.link_selected_names, {".target"})
+
+            window.migrate_selected_link()
+
+            self.assertEqual(window.link_sort_combo.currentText(), "已经迁移")
+            self.assertEqual(window.link_selected_names, set())
+            self.assertEqual([card.item.name for card in window.link_cards[:2]], [".target", ".already"])
+            self.assertTrue(all(not card.checkbox.isChecked() for card in window.link_cards))
+            scroll_top.assert_called()
+
+        window.close()
+        app.quit()
+
+    def test_cancel_link_action_success_clears_selection_and_scrolls_top(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkCancelResult, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        target_item = BackupItem(".target", Path("C:/Users/example/.target"))
+        other_item = BackupItem(".other", Path("C:/Users/example/.other"))
+        target_store = Path("D:/code/backup/迁移后的真实目录/.target")
+        scanned = [
+            ScannedItem(target_item, True, 20, datetime(2026, 5, 22, 1, 0)),
+            ScannedItem(other_item, True, 10, datetime(2026, 5, 21, 1, 0)),
+        ]
+        states = {".target": "migrated", ".other": "migrated"}
+
+        def status_for_item(item):
+            state = states[item.name]
+            store = target_store if item.name == ".target" else Path(f"D:/code/backup/迁移后的真实目录/{item.name}")
+            return LinkMigrationStatus(
+                state=state,
+                label="已迁移" if state == "migrated" else "未迁移",
+                detail="",
+                link_path=item.source,
+                store_path=store,
+                can_migrate=state == "normal",
+                can_cancel=state == "migrated",
+            )
+
+        def cancel_item(item):
+            states[item.name] = "normal"
+            return LinkCancelResult(item.source, target_store, Path("D:/backup/cancel"))
+
+        def run_worker_and_finish(job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None):
+            job(lambda message: None)
+            if after_success is not None:
+                after_success()
+            elif refresh:
+                window.refresh_link_items()
+
+        with patch.object(window.service, "get_link_migration_status", side_effect=status_for_item), patch.object(
+            window.service, "cancel_link_migration", side_effect=cancel_item
+        ), patch.object(window, "_run_worker", side_effect=run_worker_and_finish), patch.object(
+            window, "_scroll_link_list_to_top"
+        ) as scroll_top:
+            window.apply_scanned_items(scanned)
+            window.link_sort_combo.setCurrentText("从大到小")
+            window.link_cards[0].checkbox.setChecked(True)
+            self.assertEqual(window.link_selected_names, {".target"})
+
+            window.cancel_selected_link_migration()
+
+            self.assertEqual(window.link_sort_combo.currentText(), "已经迁移")
+            self.assertEqual(window.link_selected_names, set())
+            self.assertTrue(all(not card.checkbox.isChecked() for card in window.link_cards))
+            self.assertIn("未迁移", next(card.title_line.text() for card in window.link_cards if card.item.name == ".target"))
+            scroll_top.assert_called()
+
+        window.close()
+        app.quit()
+
+    def test_cancel_link_migration_refreshes_link_status_after_success(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkCancelResult, LinkMigrationStatus, ScannedItem
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".vscode", Path("C:/Users/example/.vscode"))
+        store_path = Path("D:/code/backup/迁移后的真实目录/.vscode")
+        state = {"value": "migrated"}
+
+        def status_for_item(_item):
+            if state["value"] == "migrated":
+                return LinkMigrationStatus(
+                    state="migrated",
+                    label="已迁移",
+                    detail=f"C 盘引用：{item.source}；D 盘真实目录：{store_path}",
+                    link_path=item.source,
+                    store_path=store_path,
+                    can_migrate=False,
+                    can_cancel=True,
+                )
+            return LinkMigrationStatus(
+                state="normal",
+                label="未迁移",
+                detail=f"C 盘原目录：{item.source}；迁移后真实目录：{store_path}",
+                link_path=item.source,
+                store_path=store_path,
+                can_migrate=True,
+                can_cancel=False,
+            )
+
+        def cancel_item(_item):
+            state["value"] = "normal"
+            return LinkCancelResult(item.source, store_path, Path("D:/backup/cancel"))
+
+        def run_worker_and_refresh(job, refresh=True, success_text="", after_success=None, after_failed=None, on_failed=None):
+            job(lambda message: None)
+            if after_success is not None:
+                after_success()
+            elif refresh:
+                window.refresh_link_items()
+
+        with patch.object(window.service, "get_link_migration_status", side_effect=status_for_item), patch.object(
+            window.service, "cancel_link_migration", side_effect=cancel_item
+        ), patch.object(window, "_run_worker", side_effect=run_worker_and_refresh):
+            window.apply_scanned_items([ScannedItem(item, True, 100, datetime(2026, 5, 24, 1, 0))])
+            self.assertIn("已迁移", window.link_cards[0].title_line.text())
+            window.link_cards[0].checkbox.setChecked(True)
+
+            window.cancel_selected_link_migration()
+
+            self.assertIn("未迁移", window.link_cards[0].title_line.text())
+            self.assertEqual(window.link_selected_names, set())
+            self.assertFalse(window.cancel_migration_button.isEnabled())
+            self.assertFalse(window.migrate_button.isEnabled())
+
         window.close()
         app.quit()
 
@@ -913,9 +1498,46 @@ class FluentSmokeTests(unittest.TestCase):
             window.link_cards[0].checkbox.setChecked(True)
 
         self.assertIn("异常", window.link_cards[0].title_line.text())
+        self.assertIn("异常类型：D盘已有真实目录，C盘不是Junction", window.link_cards[0].title_line.toolTip())
+        self.assertIn("处理建议：先确认 C 盘和 D 盘哪边数据完整，再手动整理。", window.link_cards[0].title_line.toolTip())
         self.assertIn("需要手动检查", window.link_hint.text())
         self.assertFalse(window.migrate_button.isEnabled())
         self.assertFalse(window.cancel_migration_button.isEnabled())
+        window.close()
+        app.quit()
+
+    def test_link_broken_status_tooltip_summarizes_each_exception_type(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import BackupItem, LinkMigrationStatus
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        item = BackupItem(".codex", Path("C:/Users/example/.codex"))
+        store_path = Path("D:/code/backup/迁移后的真实目录/.codex")
+
+        cases = [
+            ("C 盘原位置是 Junction，但真实目录不存在：D:/missing", "异常类型：C盘是Junction，但D盘真实目录不存在"),
+            ("迁移后的真实目录已存在，但 C 盘原位置不是 Junction。", "异常类型：D盘已有真实目录，C盘不是Junction"),
+            ("迁移后的真实目录已存在，但 C 盘原位置不存在。", "异常类型：D盘已有真实目录，C盘原位置不存在"),
+            ("C 盘原目录不存在，无法迁移或取消迁移。", "异常类型：C盘原目录不存在，D盘也没有迁移目录"),
+            ("其他未知问题", "异常类型：需要手动检查迁移状态"),
+        ]
+
+        for problem, expected in cases:
+            status = LinkMigrationStatus(
+                state="broken",
+                label="异常",
+                detail=f"C 盘原目录：{item.source}；D 盘真实目录：{store_path}",
+                link_path=item.source,
+                store_path=store_path,
+                can_migrate=False,
+                can_cancel=False,
+                problem=problem,
+            )
+            self.assertIn(expected, window._link_status_tooltip(status))
+
         window.close()
         app.quit()
 
@@ -1427,7 +2049,7 @@ class FluentSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(len(files), 5)
 
     def test_gui_launcher_bat_detaches_pythonw_and_exits_cmd_prompt(self):
-        launcher = Path("启动AI会话配置备份迁移.bat")
+        launcher = Path("启动Ai会话备份.bat")
         text = launcher.read_text(encoding="utf-8")
 
         self.assertIn("start", text.lower())
@@ -1439,3 +2061,4 @@ class FluentSmokeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
