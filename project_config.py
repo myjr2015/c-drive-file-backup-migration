@@ -7,7 +7,7 @@ from backup_core import BackupItem
 
 
 APP_TITLE = "Ai会话备份"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_ICON_PATH = Path("assets/app.ico")
 GITHUB_REPOSITORY = "myjr2015/ai-session-backup"
 SCHEDULE_TASK_NAME = "Ai会话备份-定时备份"

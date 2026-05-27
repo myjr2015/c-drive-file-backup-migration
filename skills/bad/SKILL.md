@@ -73,3 +73,5 @@ description: 本项目失败路线、风险和不要重复尝试的方案。
 - 不要用 Windows PowerShell 5.1 直接处理中文路径的发布包压缩或中文 spec 文件名；本项目已遇到中文路径被解码成乱码导致 zip 路径找不到。发布脚本应由 Python 负责中文路径和 zip。
 - 不要在首次公开发布前保留未公开阶段的旧产品名、旧任务名或旧版本号；既然没有老用户，就不要把这些内容做成兼容常量、README 历史说明或 GitHub Release 文案。
 - 不要把 GitHub Release 的 zip 资产名做成中文名；Windows/gh 上传后可能出现资产名被截断或乱码。发布包外层 zip 用英文短名，zip 内部 exe 和说明文件可以继续使用中文。
+- 不要在本机真实测试 Cloudflare R2 或 GitHub 发布时绕过 `D:\code\DaiMa\#全局登录脚本`；AGENTS.md 已明确这是默认登录入口，最多打印来源、长度和末 4 位，不能打印完整 key。
+- 不要把云端备份做成直接上传本地明文快照；`.codex`、`.happy`、`.ssh` 等可能包含认证状态和私钥，上传 R2 前必须先本地加密，且 manifest 必须最后上传。

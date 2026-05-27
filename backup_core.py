@@ -84,6 +84,7 @@ def empty_user_settings(settings_exists: bool = False) -> dict:
         "custom_items": [],
         "backup_root": "",
         "schedule_time": "",
+        "cloud_backup": {},
     }
 
 
@@ -123,6 +124,7 @@ def load_user_settings(config_path: Path) -> dict:
         "custom_items": normalized_custom,
         "backup_root": str(data.get("backup_root", "")).strip(),
         "schedule_time": str(data.get("schedule_time", "")).strip(),
+        "cloud_backup": data.get("cloud_backup", {}) if isinstance(data.get("cloud_backup", {}), dict) else {},
     }
 
 
@@ -141,6 +143,7 @@ def write_user_settings(
         "custom_items": list(custom_items) if custom_items is not None else previous["custom_items"],
         "backup_root": str(backup_root) if backup_root is not None else previous["backup_root"],
         "schedule_time": schedule_time if schedule_time is not None else previous["schedule_time"],
+        "cloud_backup": previous.get("cloud_backup", {}),
         "updated_at": datetime.now().isoformat(timespec="seconds"),
     }
     config_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

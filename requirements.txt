@@ -1,2 +1,4 @@
 PySide6>=6.10,<7
 PySide6-Fluent-Widgets>=1.11,<2
+boto3>=1.34,<2
+cryptography>=42,<47

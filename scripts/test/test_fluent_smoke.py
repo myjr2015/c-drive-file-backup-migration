@@ -240,10 +240,10 @@ class FluentSmokeTests(unittest.TestCase):
             self.assertEqual(window.backup_root_edit.text(), str(backup_root))
             self.assertEqual(window.schedule_time.text(), "06:30")
             self.assertGreaterEqual(window.navigation.minimumWidth(), 48)
-            self.assertEqual(len(window.navigation_buttons), 7)
+            self.assertEqual(len(window.navigation_buttons), 8)
             self.assertEqual(
                 [button.text() for button in window.navigation_buttons],
-                ["总览", "备份", "恢复", "迁移", "任务计划", "环境", "日志"],
+                ["总览", "备份", "恢复", "迁移", "云端", "任务计划", "环境", "日志"],
             )
             for button in window.navigation_buttons:
                 self.assertFalse(button.icon().isNull())
@@ -251,6 +251,8 @@ class FluentSmokeTests(unittest.TestCase):
             self.assertEqual(window.navigation.currentItem().property("routeKey"), "task")
             window._set_current_page(window.environment_page)
             self.assertEqual(window.navigation.currentItem().property("routeKey"), "environment")
+            window._set_current_page(window.cloud_page)
+            self.assertEqual(window.navigation.currentItem().property("routeKey"), "cloud")
             window.close()
             app.quit()
 
@@ -267,9 +269,10 @@ class FluentSmokeTests(unittest.TestCase):
             (1, window.items_page),
             (2, window.restore_page),
             (3, window.link_page),
-            (4, window.task_page),
-            (5, window.environment_page),
-            (6, window.log_page),
+            (4, window.cloud_page),
+            (5, window.task_page),
+            (6, window.environment_page),
+            (7, window.log_page),
         ]
         for index, page in page_pairs:
             window.navigation_buttons[index].click()
@@ -303,6 +306,11 @@ class FluentSmokeTests(unittest.TestCase):
             self.assertGreater(window.item_container.width(), 0)
             self.assertGreater(window.item_container.height(), 0)
             self.assertFalse(window.item_scroll.horizontalScrollBar().isVisible())
+
+            window._set_current_page(window.cloud_page)
+            app.processEvents()
+            self.assertGreater(window.cloud_card.width(), 0)
+            self.assertEqual(window.cloud_password_echo.text(), "")
 
             window._set_current_page(window.restore_page)
             app.processEvents()
@@ -384,6 +392,79 @@ class FluentSmokeTests(unittest.TestCase):
         window.close()
         app.quit()
 
+    def test_cloud_page_loads_and_saves_r2_config_without_losing_backup_settings(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+        from backup_core import load_user_settings, write_user_settings
+        from cloud_backup import load_cloud_config_from_settings
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = root / "home"
+            home.mkdir()
+            settings_path = root / "data" / "user-settings.json"
+            write_user_settings(settings_path, [".ssh"], backup_root=root / "backups", schedule_time="06:30")
+            original_with_name = Path.with_name
+
+            def fake_with_name(path: Path, name: str) -> Path:
+                if str(path).endswith("app_fluent.py") and name == "data":
+                    return root / "data"
+                return original_with_name(path, name)
+
+            app = QApplication.instance() or QApplication([])
+            with patch("app_fluent.Path.home", return_value=home), patch("app_fluent.Path.with_name", fake_with_name):
+                window = FluentBackupApp()
+
+            window.cloud_account_edit.setText("account")
+            window.cloud_bucket_edit.setText("bucket")
+            window.cloud_access_key_edit.setText("access")
+            window.cloud_secret_key_edit.setText("secret")
+            window.cloud_remote_root_edit.setText("remote")
+            window.cloud_endpoint_edit.setText("https://account.r2.cloudflarestorage.com")
+            window.save_cloud_config_from_input()
+
+            settings = load_user_settings(settings_path)
+            cloud_config = load_cloud_config_from_settings(settings)
+            self.assertEqual(settings["selected_items"], [".ssh"])
+            self.assertEqual(Path(settings["backup_root"]), root / "backups")
+            self.assertEqual(settings["schedule_time"], "06:30")
+            self.assertEqual(cloud_config.bucket, "bucket")
+            self.assertEqual(cloud_config.secret_access_key, "secret")
+
+            window.close()
+            app.quit()
+
+    def test_cloud_page_can_fill_config_from_global_login_environment(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from app_fluent import FluentBackupApp
+
+        app = QApplication.instance() or QApplication([])
+        window = FluentBackupApp()
+        window.cloud_bucket_edit.setText("bucket")
+
+        with patch.dict(
+            "os.environ",
+            {
+                "CLOUDFLARE_ACCOUNT_ID": "account",
+                "R2_ACCESS_KEY_ID": "access",
+                "R2_SECRET_ACCESS_KEY": "secret",
+                "R2_ENDPOINT": "https://account.r2.cloudflarestorage.com",
+            },
+            clear=True,
+        ):
+            window.fill_cloud_config_from_environment()
+
+        self.assertEqual(window.cloud_account_edit.text(), "account")
+        self.assertEqual(window.cloud_access_key_edit.text(), "access")
+        self.assertEqual(window.cloud_secret_key_edit.text(), "secret")
+        self.assertEqual(window.cloud_endpoint_edit.text(), "https://account.r2.cloudflarestorage.com")
+        self.assertEqual(window.cloud_bucket_edit.text(), "bucket")
+
+        window.close()
+        app.quit()
+
     def test_fluent_compact_density_limits_card_and_panel_sizes(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
@@ -425,6 +506,7 @@ class FluentSmokeTests(unittest.TestCase):
                 window.items_page,
                 window.restore_page,
                 window.link_page,
+                window.cloud_page,
                 window.task_page,
                 window.environment_page,
             ]
@@ -447,6 +529,10 @@ class FluentSmokeTests(unittest.TestCase):
             "恢复选中快照",
             "迁移",
             "取消迁移",
+            "从环境变量填入",
+            "保存云端配置",
+            "测试连接",
+            "立即云备份",
             "打开任务计划程序",
             "备份 Path",
             "以管理员身份打开环境变量",

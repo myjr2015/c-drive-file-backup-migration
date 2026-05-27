@@ -11,7 +11,7 @@ class ProjectConfigTests(unittest.TestCase):
         import project_config
 
         self.assertEqual(project_config.APP_TITLE, "Ai会话备份")
-        self.assertEqual(project_config.APP_VERSION, "1.0.0")
+        self.assertEqual(project_config.APP_VERSION, "1.1.0")
         self.assertEqual(project_config.GITHUB_REPOSITORY, "myjr2015/ai-session-backup")
         self.assertEqual(project_config.SCHEDULE_TASK_NAME, "Ai会话备份-定时备份")
         schedule_compat_names = [name for name in dir(project_config) if name.startswith("LEGACY") and "SCHEDULE" in name]

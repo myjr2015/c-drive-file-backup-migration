@@ -53,12 +53,12 @@
   - `gh run watch <run_id> --repo myjr2015/ai-session-backup --exit-status`
   - 失败时用 `gh run view <run_id> --repo myjr2015/ai-session-backup --log-failed` 看日志后再改。
 - Windows GitHub Actions 的 stdout 编码可能不是 UTF-8；CLI 中文输出兜底必须按当前 `sys.stdout.encoding` 做安全转义，不要写死 UTF-8 再用 ASCII 解码。
-- 公开发布名：中文软件名 `Ai会话备份`，英文仓库名 `ai-session-backup`，首个公开发布版本为 `V1.0.0`。
+- 公开发布名：中文软件名 `Ai会话备份`，英文仓库名 `ai-session-backup`，当前版本为 `V1.1.0`。
 - Windows 便携版打包：
   - 入口脚本：`scripts/build_windows_release.py`
   - PowerShell 包装入口：`scripts/build_windows_release.ps1`
   - PyInstaller spec：`windows_portable.spec`
-  - 输出：`release/ai-session-backup-v1.0.0-windows-portable.zip`
+  - 输出：`release/ai-session-backup-v1.1.0-windows-portable.zip`
   - 打包时排除 PyQt5/PyQt6/PySide2、torch、pandas、scipy、matplotlib 等无关库，避免当前全局 Python 环境把无关依赖打进发布包。
 - 中文路径和中文文件名发布包优先用 Python 脚本处理；不要用 Windows PowerShell 5.1 直接负责中文路径压缩和中文 spec 路径，容易因编码解析错导致构建后找不到输出。
 
@@ -76,7 +76,7 @@
 - 正式启动脚本必须用 `start "" /D ... pythonw.exe ...` 拉起 GUI 后立即 `exit /b 0`，避免用户双击 bat 后黑色 `cmd` 窗口一直常驻。
 - 旧调试启动入口已删除；不要再恢复，避免和默认启动脚本重复并带出控制台窗口。
 - 界面要兼顾美观和尺寸，Fluent 主界面默认 `720x540`，最小 `672x500`；避免回到大而笨重的表格布局。
-- Fluent 主界面采用“总览 / 备份 / 恢复 / 迁移 / 任务 / 环境 / 日志”分区；不要再把所有功能塞到同一页。
+- Fluent 主界面采用“总览 / 备份 / 恢复 / 迁移 / 云端 / 任务 / 环境 / 日志”分区；不要再把所有功能塞到同一页。
 - 主窗口使用 qfluentwidgets `MSFluentWindow` 微软商店风格窗口壳和内置侧边导航；不要再手写窄导航按钮。
 - 旧 `NavigationInterface.addItem(onClick=...)` 回调会收到 `checked` 布尔参数，如果后续演示器或小工具仍使用该控件，绑定页面时必须显式忽略该参数，例如 `lambda checked=False, target=page: ...`，避免把 `bool` 传给页面切换。
 - Fluent 排版采用紧凑工具型密度：优先用 4/8px 间距节奏、最小宽度和自适应布局，避免为简单工具堆固定长宽。
@@ -92,6 +92,7 @@
 - `.vscode` 已通过真实迁移和取消迁移验证：迁移时 D 盘 `迁移后的真实目录\.vscode` 保存真实目录，C 盘用户目录 `.vscode` 为 Junction 引用；取消迁移后 C 盘 `.vscode` 恢复为普通目录。
 - 备份创建后必须校验快照内文件和目录是否复制完整；Windows 子进程复制必须隐藏控制台窗口，避免备份时终端闪烁。
 - “任务”页用于打开 Windows 任务计划程序；“环境”页用于备份当前 Path 到 `环境变量Path备份`，并以管理员身份打开系统环境变量入口提示用户检查 Path；暂不做 Path 恢复。
+- “云端”页用于 Cloudflare R2 加密增量备份；真实测试前先运行全局 `Cloudflare_R2.ps1` 登录脚本，再从环境变量填入配置。云端备份必须先加密文件对象并最后上传 manifest。
 - Fluent 启动或保存备份目录时会把旧英文维护目录 `restore-backups`、`link-store`、`link-migration-backups`、`environment-path` 合并到中文维护目录；旧英文名只作为兼容输入，不再作为默认展示。
 - 页面内部不要重复放“管理项目 / 恢复快照 / 查看全部”等导航跳转；已有左侧导航栏，页内只保留当前页必要操作。
 - 讨论主题、主题色、导航栏风格、窗口风格和组件密度时，优先用 `style_demo_fluent.py` 本地演示器做选择；当前已确认默认采用“跟随系统 / 蓝色 / 侧边导航 / 微软商店风格 / 紧凑”，后续正式界面默认沿用这套标准。

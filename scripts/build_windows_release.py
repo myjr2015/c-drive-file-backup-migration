@@ -46,9 +46,9 @@ def write_release_readme(dist_dir: Path) -> None:
 3. 默认备份目录是 D:\\code\\backup，可在软件总览页修改。
 
 注意：
-- 这是第一个正式公开发布版本。
+- V1.1.0 新增 Cloudflare R2 云端加密增量备份。
 - .codex、.happy、.claude、.ssh 等目录可能包含 token、SSH 私钥或 AI 会话数据。
-- 当前版本是本地明文备份，不要把备份快照上传到公开位置。
+- 本地快照仍是明文；云端备份会先加密再上传，请保管好加密密码。
 """
     (dist_dir / "使用说明.txt").write_text(text, encoding="utf-8")
 
@@ -64,7 +64,7 @@ def main() -> int:
     zip_path = release_dir / ZIP_NAME
 
     if not args.skip_tests:
-        run([sys.executable, "-m", "py_compile", "backup_cli.py", "backup_core.py", "app_fluent.py", "project_config.py"])
+        run([sys.executable, "-m", "py_compile", "backup_cli.py", "backup_core.py", "cloud_backup.py", "app_fluent.py", "project_config.py"])
         run([sys.executable, "-m", "unittest", "discover", "-s", "scripts/test", "-p", "test_*.py", "-v"])
 
     remove_path(repo / "build")

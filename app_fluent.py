@@ -65,6 +65,14 @@ from backup_core import (
     load_user_settings,
     write_user_settings,
 )
+from cloud_backup import (
+    CloudBackupConfig,
+    CloudBackupService,
+    R2Storage,
+    cloud_config_from_environment,
+    load_cloud_config_from_settings,
+    write_cloud_config_to_settings,
+)
 from project_config import (
     APP_ICON_PATH,
     APP_TITLE,
@@ -338,6 +346,7 @@ class FluentBackupApp(MSFluentWindow):
         user_settings = load_user_settings(self.user_settings_path)
         self.backup_root = get_backup_root(config, user_settings)
         self.service = BackupService(self.backup_root)
+        self.cloud_config = load_cloud_config_from_settings(user_settings)
         self.custom_items_config: list[dict] = user_settings.get("custom_items", [])
         self.items = build_backup_items(self.home, self.custom_items_config)
         self.schedule_time_value = user_settings.get("schedule_time") or "22:30"
@@ -436,6 +445,7 @@ class FluentBackupApp(MSFluentWindow):
         self.items_page = self._build_items_page()
         self.restore_page = self._build_restore_page()
         self.link_page = self._build_link_page()
+        self.cloud_page = self._build_cloud_page()
         self.task_page = self._build_task_page()
         self.environment_page = self._build_environment_page()
         self.log_page = self._build_log_page()
@@ -449,6 +459,7 @@ class FluentBackupApp(MSFluentWindow):
             ("backup", "备份", FluentIcon.CHECKBOX, self.items_page, NavigationItemPosition.TOP),
             ("restore", "恢复", FluentIcon.SYNC, self.restore_page, NavigationItemPosition.TOP),
             ("migration", "迁移", FluentIcon.LINK, self.link_page, NavigationItemPosition.TOP),
+            ("cloud", "云端", FluentIcon.CLOUD, self.cloud_page, NavigationItemPosition.TOP),
             ("task", "任务计划", FluentIcon.CALENDAR, self.task_page, NavigationItemPosition.TOP),
             ("environment", "环境", FluentIcon.DEVELOPER_TOOLS, self.environment_page, NavigationItemPosition.TOP),
             ("log", "日志", FluentIcon.DOCUMENT, self.log_page, NavigationItemPosition.BOTTOM),
@@ -956,6 +967,93 @@ class FluentBackupApp(MSFluentWindow):
         layout.addWidget(self.link_terms_text)
         return card
 
+    def _build_cloud_page(self) -> QWidget:
+        page, layout = self._base_page()
+        layout.addWidget(self._section_title("云端备份", "Cloudflare R2 加密增量备份；先上传加密文件对象，最后上传加密 manifest。"))
+
+        self.cloud_card = CardWidget()
+        card_layout = QVBoxLayout(self.cloud_card)
+        card_layout.setContentsMargins(8, 6, 8, 8)
+        card_layout.setSpacing(6)
+
+        card_layout.addWidget(StrongBodyLabel("Cloudflare R2"))
+        hint = CaptionLabel("本机开发可先运行全局登录脚本，再点“从环境变量填入”；普通用户也可以手动填写 R2 信息。")
+        hint.setObjectName("Muted")
+        hint.setWordWrap(True)
+        card_layout.addWidget(hint)
+
+        form = QGridLayout()
+        form.setHorizontalSpacing(6)
+        form.setVerticalSpacing(5)
+        card_layout.addLayout(form)
+
+        self.cloud_account_edit = LineEdit()
+        self.cloud_account_edit.setText(self.cloud_config.account_id)
+        self.cloud_bucket_edit = LineEdit()
+        self.cloud_bucket_edit.setText(self.cloud_config.bucket)
+        self.cloud_access_key_edit = LineEdit()
+        self.cloud_access_key_edit.setText(self.cloud_config.access_key_id)
+        self.cloud_secret_key_edit = LineEdit()
+        self.cloud_secret_key_edit.setText(self.cloud_config.secret_access_key)
+        self.cloud_secret_key_edit.setEchoMode(LineEdit.EchoMode.Password)
+        self.cloud_endpoint_edit = LineEdit()
+        self.cloud_endpoint_edit.setText(self.cloud_config.endpoint_url)
+        self.cloud_remote_root_edit = LineEdit()
+        self.cloud_remote_root_edit.setText(self.cloud_config.remote_root)
+        self.cloud_password_echo = LineEdit()
+        self.cloud_password_echo.setEchoMode(LineEdit.EchoMode.Password)
+        self.cloud_password_echo.setPlaceholderText("云端加密密码，不会上传；丢失后无法恢复云端数据")
+
+        fields = [
+            ("Account ID", self.cloud_account_edit),
+            ("Bucket", self.cloud_bucket_edit),
+            ("Access Key ID", self.cloud_access_key_edit),
+            ("Secret Access Key", self.cloud_secret_key_edit),
+            ("Endpoint", self.cloud_endpoint_edit),
+            ("Remote Root", self.cloud_remote_root_edit),
+            ("加密密码", self.cloud_password_echo),
+        ]
+        for row, (label, editor) in enumerate(fields):
+            editor.setFixedHeight(32)
+            editor.setMinimumWidth(180)
+            form.addWidget(BodyLabel(label), row, 0)
+            form.addWidget(editor, row, 1)
+        form.setColumnStretch(1, 1)
+
+        self.cloud_toolbar = QFrame()
+        toolbar_layout = FlowLayout(self.cloud_toolbar, needAni=False)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.setHorizontalSpacing(5)
+        toolbar_layout.setVerticalSpacing(5)
+        fill_from_env = PushButton("从环境变量填入")
+        set_compact_button(fill_from_env)
+        fill_from_env.clicked.connect(self.fill_cloud_config_from_environment)
+        save = PrimaryPushButton("保存云端配置")
+        set_compact_button(save)
+        save.clicked.connect(self.save_cloud_config_from_input)
+        test = PushButton("测试连接")
+        set_compact_button(test)
+        test.clicked.connect(self.test_cloud_connection)
+        backup = PrimaryPushButton("立即云备份")
+        set_compact_button(backup)
+        backup.clicked.connect(self.create_cloud_backup)
+        for button in [fill_from_env, save, test, backup]:
+            toolbar_layout.addWidget(button)
+        card_layout.addWidget(self.cloud_toolbar)
+
+        warning = CaptionLabel("注意：R2 中保存的是加密对象；请自己保管加密密码。当前版本先做云端备份，云端恢复后续再做。")
+        warning.setObjectName("WarningHint")
+        warning.setWordWrap(True)
+        card_layout.addWidget(warning)
+
+        self.cloud_status = CaptionLabel("状态：未测试")
+        self.cloud_status.setObjectName("Muted")
+        self.cloud_status.setWordWrap(True)
+        card_layout.addWidget(self.cloud_status)
+
+        layout.addWidget(self.cloud_card, 1)
+        return page
+
     def _build_task_page(self) -> QWidget:
         page, layout = self._base_page()
         layout.addWidget(self._section_title("任务计划", "打开 Windows 任务计划程序，检查或调整自动备份任务。"))
@@ -1382,6 +1480,104 @@ class FluentBackupApp(MSFluentWindow):
             log(f"环境变量 Path 已备份：{result.path}")
 
         self._run_worker(job, refresh=False, success_text="Path 已备份")
+
+    def cloud_config_from_input(self) -> CloudBackupConfig:
+        return CloudBackupConfig(
+            account_id=self.cloud_account_edit.text().strip(),
+            bucket=self.cloud_bucket_edit.text().strip(),
+            access_key_id=self.cloud_access_key_edit.text().strip(),
+            secret_access_key=self.cloud_secret_key_edit.text().strip(),
+            remote_root=self.cloud_remote_root_edit.text().strip() or "ai-session-backup",
+            endpoint_url=self.cloud_endpoint_edit.text().strip(),
+        )
+
+    def set_cloud_config_inputs(self, config: CloudBackupConfig, keep_bucket_if_empty: bool = False) -> None:
+        existing_bucket = self.cloud_bucket_edit.text().strip()
+        self.cloud_account_edit.setText(config.account_id)
+        if config.bucket or not keep_bucket_if_empty:
+            self.cloud_bucket_edit.setText(config.bucket)
+        elif existing_bucket:
+            self.cloud_bucket_edit.setText(existing_bucket)
+        self.cloud_access_key_edit.setText(config.access_key_id)
+        self.cloud_secret_key_edit.setText(config.secret_access_key)
+        self.cloud_remote_root_edit.setText(config.remote_root)
+        self.cloud_endpoint_edit.setText(config.endpoint_url)
+
+    def fill_cloud_config_from_environment(self) -> None:
+        bucket = self.cloud_bucket_edit.text().strip()
+        remote_root = self.cloud_remote_root_edit.text().strip() or "ai-session-backup"
+        config = cloud_config_from_environment(bucket=bucket, remote_root=remote_root)
+        self.set_cloud_config_inputs(config, keep_bucket_if_empty=True)
+        if config.access_key_id and config.secret_access_key and config.account_id:
+            self.cloud_status.setText("状态：已从当前进程环境变量填入 R2 凭据。")
+            self._info("已从环境变量填入云端配置。")
+        else:
+            self.cloud_status.setText("状态：环境变量不完整，请先运行全局 Cloudflare_R2 登录脚本。")
+            self._warn("没有读到完整 R2 环境变量。")
+
+    def save_cloud_config_from_input(self) -> None:
+        config = self.cloud_config_from_input()
+        try:
+            config.validate()
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+        write_cloud_config_to_settings(self.user_settings_path, config)
+        self.cloud_config = config
+        self.cloud_status.setText("状态：云端配置已保存。")
+        self._success("云端配置已保存")
+
+    def test_cloud_connection(self) -> None:
+        config = self.cloud_config_from_input()
+        try:
+            config.validate()
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+
+        def job(log):
+            storage = R2Storage(config)
+            storage.list_keys(config.normalized_remote_root() + "/")
+            log(f"R2 连接测试成功：bucket={config.bucket}，remote_root={config.normalized_remote_root()}")
+
+        self._run_worker(job, refresh=False, success_text="R2 连接成功")
+
+    def create_cloud_backup(self) -> None:
+        selected = self._selected_items()
+        if not selected:
+            self._warn("请至少选择一个存在的备份内容。")
+            return
+        config = self.cloud_config_from_input()
+        try:
+            config.validate()
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+        password = self.cloud_password_echo.text()
+        if not password:
+            self._warn("请输入云端加密密码。")
+            return
+        warning = build_sensitive_backup_warning(selected)
+        message = f"将加密上传 {len(selected)} 个项目到 R2 bucket：{config.bucket}\nRemote Root：{config.normalized_remote_root()}\n\n云端恢复必须使用同一个加密密码。是否开始？"
+        if warning:
+            message = f"{warning}\n\n{message}"
+        ok = QMessageBox.question(self, APP_TITLE, message)
+        if ok != QMessageBox.StandardButton.Yes:
+            return
+        write_cloud_config_to_settings(self.user_settings_path, config)
+        self.cloud_config = config
+
+        def job(log):
+            storage = R2Storage(config)
+            result = CloudBackupService(storage).create_cloud_snapshot(selected, config=config, password=password)
+            log(
+                "云端备份完成："
+                f"manifest={result.manifest_key}，上传对象={result.uploaded_objects}，已存在跳过={result.skipped_objects}，文件数={result.total_files}"
+            )
+            if result.skipped_items:
+                log(f"跳过项目：{', '.join(result.skipped_items)}")
+
+        self._run_worker(job, refresh=False, success_text="云端备份完成")
 
     def choose_backup_root(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "选择备份保存目录", str(self.backup_root))
